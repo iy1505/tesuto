@@ -27,7 +27,7 @@ def generate_problem():
 
 # ゲーム開始ボタン
 st.title(" 計算チャレンジ（掛け算・割り算）")
-if st.button(" ゲーム開始 / リセット"):
+if st.button("ゲーム開始 / リセット"):
     init_session()
 
 # ゲームが開始されていない場合は終了
@@ -55,14 +55,17 @@ st.write(f"### 問題 {st.session_state.question_count + 1}: {a} {op} {b} = ?")
 if st.session_state.waiting:
     st.success(st.session_state.last_feedback)
     if time.time() - st.session_state.feedback_shown_at > FEEDBACK_DELAY:
+        # 次の問題に進む
         st.session_state.current_question = generate_problem()
         st.session_state.question_count += 1
-        st.session_state.input = ""
+        st.session_state.input = ""  # 入力状態をクリア
         st.session_state.waiting = False
         st.session_state.last_feedback = ""
+        st.session_state.feedback_shown_at = None
+        # 再実行ではなく次の問題へ進行
         st.experimental_rerun()
     else:
-        st.stop()
+        st.stop()  # フィードバック待機中は再実行しない
 
 # 入力欄
 answer = st.text_input("答えを入力して Enter", value=st.session_state.input, key="answer_input")
@@ -79,6 +82,8 @@ if answer.strip() and not st.session_state.waiting:
     except ValueError:
         st.session_state.last_feedback = "⚠️ 数字で入力してください"
 
+    # フィードバック後、次の問題へ進む準備
     st.session_state.waiting = True
-    st.session_state.feedback_shown_at = time.time()
-    st.experimental_rerun()
+    st.session_state.feedback_shown_at = time.time()  # フィードバック表示時間を記録
+    st.experimental_rerun()  # ここで再実行を行う
+
