@@ -11,14 +11,16 @@ if "start_time" not in st.session_state:
     st.session_state.start_time = None
 if "current_question" not in st.session_state:
     st.session_state.current_question = None
-if "user_input" not in st.session_state:
-    st.session_state.user_input = ""
-if "feedback_time" not in st.session_state:
-    st.session_state.feedback_time = None
+if "input_key" not in st.session_state:
+    st.session_state.input_key = str(time.time())
 if "last_feedback" not in st.session_state:
     st.session_state.last_feedback = ""
+if "feedback_time" not in st.session_state:
+    st.session_state.feedback_time = None
+if "wait_next" not in st.session_state:
+    st.session_state.wait_next = False
 
-time_limit = 30  # 制限時間（秒）
+time_limit = 30  # 秒
 
 # --- 問題生成 ---
 def generate_problem():
@@ -38,61 +40,64 @@ def start_game():
     st.session_state.question_count = 0
     st.session_state.start_time = time.time()
     st.session_state.current_question = generate_problem()
-    st.session_state.user_input = ""
+    st.session_state.input_key = str(time.time())
     st.session_state.last_feedback = ""
     st.session_state.feedback_time = None
+    st.session_state.wait_next = False
 
-# --- 時間チェック ---
+# --- タイムチェック ---
 def check_timeout():
     elapsed = time.time() - st.session_state.start_time
     remaining = int(time_limit - elapsed)
-    st.write(f"残り時間: {remaining} 秒")
+    st.write(f"🕒 残り時間: {remaining} 秒")
     if remaining <= 0:
-        st.warning("時間切れ！")
-        st.write(f"最終スコア: {st.session_state.score} 点")
+        st.warning("⏰ 時間切れ！")
+        st.write(f"あなたのスコアは {st.session_state.score} 点です。")
         if st.button("再挑戦"):
             start_game()
         return True
     return False
 
-# --- アプリ本体 ---
-st.title("掛け算・割り算チャレンジ")
-st.write(f"{time_limit} 秒以内にできるだけ多く解こう！")
+# --- UI ---
+st.title("🧮 掛け算・割り算チャレンジ")
+st.write(f"【制限時間：{time_limit} 秒】できるだけ早く正解しよう！")
 
-if st.button("ゲーム開始"):
+if st.button("ゲーム開始 / リセット"):
     start_game()
 
-if st.session_state.start_time:
-    if not check_timeout():
-        q = st.session_state.current_question
-        a, b, op, correct = q
-        st.write(f"問題 {st.session_state.question_count + 1}: {a} {op} {b} = ?")
+if st.session_state.start_time and not check_timeout():
+    a, b, op, answer = st.session_state.current_question
+    st.write(f"### 問題 {st.session_state.question_count + 1}")
+    st.write(f"**{a} {op} {b} = ?**")
 
-        user_input = st.text_input("答えを入力:", value=st.session_state.user_input, key="answer")
-
-        # ユーザーの入力が完了していたら自動判定
-        if user_input != st.session_state.user_input and user_input.strip() != "":
-            try:
-                if int(user_input) == correct:
-                    st.session_state.score += 1
-                    st.session_state.last_feedback = "✅ 正解！"
-                else:
-                    st.session_state.last_feedback = f"❌ 不正解。正解は {correct}"
-            except ValueError:
-                st.session_state.last_feedback = "⚠️ 数字を入力してください"
-
-            st.session_state.feedback_time = time.time()
-            st.session_state.user_input = user_input  # 入力確定
-
-        # フィードバック表示
-        if st.session_state.feedback_time:
+    # フィードバックが出たあとの自動進行処理
+    if st.session_state.wait_next:
+        if time.time() - st.session_state.feedback_time > 0.5:
+            # 次の問題へ進行
+            st.session_state.current_question = generate_problem()
+            st.session_state.input_key = str(time.time())
+            st.session_state.last_feedback = ""
+            st.session_state.feedback_time = None
+            st.session_state.wait_next = False
+            st.session_state.question_count += 1
+            st.experimental_rerun()
+        else:
             st.write(st.session_state.last_feedback)
+            st.stop()
 
-            # 0.5秒後に次の問題へ自動切り替え
-            if time.time() - st.session_state.feedback_time > 0.5:
-                st.session_state.current_question = generate_problem()
-                st.session_state.question_count += 1
-                st.session_state.user_input = ""
-                st.session_state.feedback_time = None
-                st.session_state.last_feedback = ""
-                st.experimental_rerun()
+    # 入力受付
+    user_input = st.text_input("答えを入力:", key=st.session_state.input_key)
+
+    if user_input.strip():
+        try:
+            if int(user_input) == answer:
+                st.session_state.score += 1
+                st.session_state.last_feedback = "✅ 正解！"
+            else:
+                st.session_state.last_feedback = f"❌ 不正解。正解は {answer}"
+        except ValueError:
+            st.session_state.last_feedback = "⚠️ 数字を入力してください"
+
+        st.session_state.feedback_time = time.time()
+        st.session_state.wait_next = True
+        st.experimental_rerun()
