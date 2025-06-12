@@ -58,8 +58,8 @@ def check_timeout():
         return True
     return False
 
-# --- UI ---
-st.title("掛け算・割り算チャレンジ")
+# --- アプリ本体 ---
+st.title(" 掛け算・割り算チャレンジ")
 st.write(f"【制限時間：{time_limit} 秒】できるだけ早く正解しよう！")
 
 if st.button("ゲーム開始 / リセット"):
@@ -80,7 +80,7 @@ if st.session_state.start_time and not check_timeout():
             st.session_state.feedback_time = None
             st.session_state.wait_next = False
             st.session_state.question_count += 1
-            st.experimental_rerun()
+            st.rerun()  # ← 修正ポイント
         else:
             st.write(st.session_state.last_feedback)
             st.stop()
@@ -100,4 +100,4 @@ if st.session_state.start_time and not check_timeout():
 
         st.session_state.feedback_time = time.time()
         st.session_state.wait_next = True
-        st.experimental_rerun()
+        st.rerun()  # ← 修正ポイント
