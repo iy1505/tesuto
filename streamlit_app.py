@@ -2,18 +2,23 @@ import streamlit as st
 import random
 import time
 
-# ゲームの状態を保持するために session_state を使う
+# --- 初期化 ---
 if "score" not in st.session_state:
     st.session_state.score = 0
 if "question_count" not in st.session_state:
     st.session_state.question_count = 0
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
+if "current_question" not in st.session_state:
+    st.session_state.current_question = None
+if "show_result" not in st.session_state:
+    st.session_state.show_result = False
+if "last_correct" not in st.session_state:
+    st.session_state.last_correct = False
 
-# タイマーの設定
 time_limit = 30  # 制限時間（秒）
 
-# 問題を生成する関数
+# --- 問題生成 ---
 def generate_problem():
     operation = random.choice(['*', '/'])
     num1 = random.randint(1, 10)
@@ -21,62 +26,74 @@ def generate_problem():
     if operation == '*':
         answer = num1 * num2
     else:
-        # 割り算の場合は答えが整数になるように調整
-        num1 = num1 * num2
+        num1 = num1 * num2  # 整数割りになるよう調整
         answer = num1 // num2
     return num1, num2, operation, answer
 
-# ゲーム開始の処理
+# --- ゲーム開始 ---
 def start_game():
-    st.session_state.start_time = time.time()  # ゲーム開始時間を記録
     st.session_state.score = 0
     st.session_state.question_count = 0
+    st.session_state.start_time = time.time()
+    st.session_state.current_question = generate_problem()
+    st.session_state.show_result = False
 
-# ゲームの進行処理
-def next_question():
-    num1, num2, operation, correct_answer = generate_problem()
+# --- 問題表示と解答処理 ---
+def show_question():
+    num1, num2, op, answer = st.session_state.current_question
+    st.write(f"問題 {st.session_state.question_count + 1}: {num1} {op} {num2} = ?")
 
-    # 問題表示
-    question_text = f"問題 {st.session_state.question_count + 1}: {num1} {operation} {num2} = ?"
-    st.write(question_text)
+    user_input = st.text_input("答えを入力してください:", key=st.session_state.question_count)
 
-    # ユーザーの入力
-    user_answer = st.text_input(f"答えを入力してください（問題 {st.session_state.question_count + 1}）:", key=st.session_state.question_count)
+    if st.button("送信"):
+        if user_input.strip() == "":
+            st.warning("答えを入力してください。")
+            return
 
-    # 入力があった場合に解答をチェック
-    if user_answer:
-        if user_answer.isdigit():
-            if int(user_answer) == correct_answer:
+        try:
+            if int(user_input) == answer:
                 st.session_state.score += 1
-                st.write("正解！")
+                st.session_state.last_correct = True
+                st.success("正解！")
             else:
-                st.write(f"不正解。正しい答えは {correct_answer} です。")
+                st.session_state.last_correct = False
+                st.error(f"不正解。正しい答えは {answer} です。")
+        except ValueError:
+            st.error("数値で入力してください。")
+            return
 
-        # 問題の数をカウントして次の問題に進む
+        st.session_state.show_result = True
         st.session_state.question_count += 1
-        st.session_state.start_time = time.time()  # 新しい問題を出題するたびにタイマーをリセット
 
-# ゲーム終了の処理
-def check_game_over():
-    elapsed_time = time.time() - st.session_state.start_time
-    if elapsed_time > time_limit:
-        st.write("時間切れです！ゲーム終了！")
-        st.write(f"最終スコアは {st.session_state.score} です。")
-        return True
+# --- 次の問題 ---
+def next_step():
+    if st.button("次の問題へ"):
+        st.session_state.current_question = generate_problem()
+        st.session_state.show_result = False
+
+# --- 時間チェック ---
+def check_timeout():
+    if st.session_state.start_time:
+        elapsed = time.time() - st.session_state.start_time
+        remaining = int(time_limit - elapsed)
+        st.write(f"残り時間: {remaining} 秒")
+        if remaining <= 0:
+            st.warning("時間切れ！ゲーム終了")
+            st.write(f"あなたのスコアは {st.session_state.score} 点です。")
+            st.button("再挑戦", on_click=start_game)
+            return True
     return False
 
-# 初期画面設定
-st.title("掛け算・割り算ゲーム")
-st.write(f"制限時間は {time_limit} 秒です！")
+# --- アプリ本体 ---
+st.title("掛け算・割り算チャレンジ")
+st.write(f"{time_limit} 秒以内にできるだけ多く解こう！")
 
-# ゲーム開始ボタン
 if st.button("ゲーム開始"):
     start_game()
 
-# ゲーム進行中の処理
 if st.session_state.start_time:
-    if check_game_over():
-        st.button("再挑戦", on_click=start_game)  # ゲーム終了後の再挑戦ボタン
-    else:
-        next_question()
-
+    if not check_timeout():
+        if not st.session_state.show_result:
+            show_question()
+        else:
+            next_step()
