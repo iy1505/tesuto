@@ -59,7 +59,7 @@ def check_timeout():
     return False
 
 # --- アプリ本体 ---
-st.title(" 掛け算・割り算チャレンジ")
+st.title("🧮 掛け算・割り算チャレンジ")
 st.write(f"【制限時間：{time_limit} 秒】できるだけ早く正解しよう！")
 
 if st.button("ゲーム開始 / リセット"):
@@ -72,15 +72,16 @@ if st.session_state.start_time and not check_timeout():
 
     # フィードバックが出たあとの自動進行処理
     if st.session_state.wait_next:
+        # フィードバック表示時間の管理
         if time.time() - st.session_state.feedback_time > 0.5:
             # 次の問題へ進行
             st.session_state.current_question = generate_problem()
-            st.session_state.input_key = str(time.time())
+            st.session_state.input_key = str(time.time())  # 新しい入力キーを生成
             st.session_state.last_feedback = ""
             st.session_state.feedback_time = None
             st.session_state.wait_next = False
             st.session_state.question_count += 1
-            st.rerun()  # ← 修正ポイント
+            st.experimental_rerun()  # ここで再描画を実行
         else:
             st.write(st.session_state.last_feedback)
             st.stop()
@@ -98,6 +99,6 @@ if st.session_state.start_time and not check_timeout():
         except ValueError:
             st.session_state.last_feedback = "⚠️ 数字を入力してください"
 
-        st.session_state.feedback_time = time.time()
-        st.session_state.wait_next = True
-        st.rerun()  # ← 修正ポイント
+        st.session_state.feedback_time = time.time()  # フィードバック時間を記録
+        st.session_state.wait_next = True  # 次の問題に進む準備
+        st.experimental_rerun()  # ここで再描画を実行
