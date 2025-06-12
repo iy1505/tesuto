@@ -26,8 +26,8 @@ def generate_problem():
     return (a, b, op, answer)
 
 # ゲーム開始ボタン
-st.title(" 計算チャレンジ（掛け算・割り算）")
-if st.button("ゲーム開始 / リセット"):
+st.title("計算チャレンジ（掛け算・割り算）")
+if st.button(" ゲーム開始 / リセット"):
     init_session()
 
 # ゲームが開始されていない場合は終了
@@ -62,8 +62,8 @@ if st.session_state.waiting:
         st.session_state.waiting = False
         st.session_state.last_feedback = ""
         st.session_state.feedback_shown_at = None
-        # 再実行ではなく次の問題へ進行
-        st.experimental_rerun()
+        st.experimental_rerun()  # この行は必要なし
+
     else:
         st.stop()  # フィードバック待機中は再実行しない
 
@@ -85,5 +85,5 @@ if answer.strip() and not st.session_state.waiting:
     # フィードバック後、次の問題へ進む準備
     st.session_state.waiting = True
     st.session_state.feedback_shown_at = time.time()  # フィードバック表示時間を記録
-    st.experimental_rerun()  # ここで再実行を行う
+    st.experimental_rerun()  # フィードバック後、次の問題に進むための処理
 
