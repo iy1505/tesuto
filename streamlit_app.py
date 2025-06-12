@@ -1,39 +1,76 @@
-# Streamlitライブラリをインポート
 import streamlit as st
+import numpy as np
+import time
 import random
 
-# ページ設定（タブに表示されるタイトル、表示幅）
-st.set_page_config(page_title="タイトル", layout="wide")
+# ボードサイズ
+ROWS = 20
+COLS = 10
 
-# タイトルを設定
-st.title('1')
+# テトリスブロックの定義
+SHAPES = {
+    'I': [[1, 1, 1, 1]],
+    'O': [[1, 1],
+          [1, 1]],
+    'T': [[0, 1, 0],
+          [1, 1, 1]],
+    'L': [[1, 0, 0],
+          [1, 1, 1]],
+    'J': [[0, 0, 1],
+          [1, 1, 1]],
+    'S': [[0, 1, 1],
+          [1, 1, 0]],
+    'Z': [[1, 1, 0],
+          [0, 1, 1]]
+}
 
-# テキスト入力ボックスを作成し、ユーザーからの入力を受け取る
-user_input = st.text_input('あなたの名前を入力してください')
+# 現在の形状を落とす
+def place_shape(board, shape, pos):
+    for i, row in enumerate(shape):
+        for j, cell in enumerate(row):
+            if cell and 0 <= pos[0]+i < ROWS and 0 <= pos[1]+j < COLS:
+                board[pos[0]+i][pos[1]+j] = 1
+    return board
 
-# ボタンを作成し、クリックされたらメッセージを表示
-if st.button('挨拶する'):
-    if user_input:  # 名前が入力されているかチェック
-        st.success(f'🌟 こんにちは、{user_input}さん! 🌟')  # メッセージをハイライト
-    else:
-        st.error('名前を入力してください。')  # エラーメッセージを表示
+# 描画
+def draw_board(board):
+    st.write("⬛ = 空白、🟩 = ブロック")
+    board_display = ""
+    for row in board:
+        for cell in row:
+            board_display += "🟩" if cell else "⬛"
+        board_display += "\n"
+    st.text(board_display)
 
-# スライダーを作成し、値を選択
-number = st.slider('好きな数字（10進数）を選んでください', 0, 100)
+def main():
+    st.title("🧱 簡易テトリス (Streamlit版)")
+    if 'board' not in st.session_state:
+        st.session_state.board = np.zeros((ROWS, COLS), dtype=int)
+        st.session_state.shape = random.choice(list(SHAPES.values()))
+        st.session_state.pos = [0, COLS // 2 - len(st.session_state.shape[0]) // 2]
 
-# 補足メッセージ
-st.caption("十字キー（左右）でも調整できます。")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("⬅️ 左"):
+            st.session_state.pos[1] = max(0, st.session_state.pos[1] - 1)
+    with col2:
+        if st.button("⬇️ 下"):
+            st.session_state.pos[0] += 1
+    with col3:
+        if st.button("➡️ 右"):
+            st.session_state.pos[1] = min(COLS - len(st.session_state.shape[0]), st.session_state.pos[1] + 1)
 
-# 選択した数字を表示
-st.write(f'あなたが選んだ数字は「{number}」です。')
+    board_copy = np.copy(st.session_state.board)
+    place_shape(board_copy, st.session_state.shape, st.session_state.pos)
+    draw_board(board_copy)
 
-# 選択した数値を2進数に変換a
-binary_representation = bin(number)[2:]  # 'bin'関数で2進数に変換し、先頭の'0b'を取り除く
-st.info(f'🔢 10進数の「{number}」を2進数で表現すると「{binary_representation}」になります。 🔢')  # 2進数の表示をハイライト
+    if st.button("🔄 固定 & 新しいブロック"):
+        place_shape(st.session_state.board, st.session_state.shape, st.session_state.pos)
+        st.session_state.shape = random.choice(list(SHAPES.values()))
+        st.session_state.pos = [0, COLS // 2 - len(st.session_state.shape[0]) // 2]
 
+    if st.button("🔁 リセット"):
+        st.session_state.clear()
 
-min_val = st.number_input('最小値を入力してください',value=0)
-max_val = st.number_input('最大値を入力してください',value=10)
-if st.button('乱数を生成') :
-    random_num = random.randint(min_val,max_val)
-    st.write(f'生成された乱数: {random_num}')
+if __name__ == "__main__":
+    main()
