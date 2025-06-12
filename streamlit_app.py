@@ -1,76 +1,66 @@
 import streamlit as st
-import numpy as np
-import time
 import random
+import time
 
-# ボードサイズ
-ROWS = 20
-COLS = 10
+# スコアの初期化
+score = 0
+question_count = 0
 
-# テトリスブロックの定義
-SHAPES = {
-    'I': [[1, 1, 1, 1]],
-    'O': [[1, 1],
-          [1, 1]],
-    'T': [[0, 1, 0],
-          [1, 1, 1]],
-    'L': [[1, 0, 0],
-          [1, 1, 1]],
-    'J': [[0, 0, 1],
-          [1, 1, 1]],
-    'S': [[0, 1, 1],
-          [1, 1, 0]],
-    'Z': [[1, 1, 0],
-          [0, 1, 1]]
-}
+# タイマーの設定
+time_limit = 30  # 制限時間（秒）
+start_time = None
 
-# 現在の形状を落とす
-def place_shape(board, shape, pos):
-    for i, row in enumerate(shape):
-        for j, cell in enumerate(row):
-            if cell and 0 <= pos[0]+i < ROWS and 0 <= pos[1]+j < COLS:
-                board[pos[0]+i][pos[1]+j] = 1
-    return board
+# 問題を生成する関数
+def generate_problem():
+    operation = random.choice(['*', '/'])
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    if operation == '*':
+        answer = num1 * num2
+    else:
+        # 割り算の場合は答えが整数になるように調整
+        num1 = num1 * num2
+        answer = num1 // num2
+    return num1, num2, operation, answer
 
-# 描画
-def draw_board(board):
-    st.write("⬛ = 空白、🟩 = ブロック")
-    board_display = ""
-    for row in board:
-        for cell in row:
-            board_display += "🟩" if cell else "⬛"
-        board_display += "\n"
-    st.text(board_display)
+# 画面の初期設定
+st.title("掛け算・割り算ゲーム")
+st.write(f"制限時間は {time_limit} 秒です！")
 
-def main():
-    st.title("🧱 簡易テトリス (Streamlit版)")
-    if 'board' not in st.session_state:
-        st.session_state.board = np.zeros((ROWS, COLS), dtype=int)
-        st.session_state.shape = random.choice(list(SHAPES.values()))
-        st.session_state.pos = [0, COLS // 2 - len(st.session_state.shape[0]) // 2]
+# ゲーム開始ボタン
+if st.button("ゲーム開始"):
+    start_time = time.time()
+    score = 0
+    question_count = 0
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("⬅️ 左"):
-            st.session_state.pos[1] = max(0, st.session_state.pos[1] - 1)
-    with col2:
-        if st.button("⬇️ 下"):
-            st.session_state.pos[0] += 1
-    with col3:
-        if st.button("➡️ 右"):
-            st.session_state.pos[1] = min(COLS - len(st.session_state.shape[0]), st.session_state.pos[1] + 1)
+    # 問題を出し続けるループ
+    while True:
+        num1, num2, operation, correct_answer = generate_problem()
 
-    board_copy = np.copy(st.session_state.board)
-    place_shape(board_copy, st.session_state.shape, st.session_state.pos)
-    draw_board(board_copy)
+        # 問題表示
+        question_text = f"問題 {question_count + 1}: {num1} {operation} {num2} = ?"
+        st.write(question_text)
 
-    if st.button("🔄 固定 & 新しいブロック"):
-        place_shape(st.session_state.board, st.session_state.shape, st.session_state.pos)
-        st.session_state.shape = random.choice(list(SHAPES.values()))
-        st.session_state.pos = [0, COLS // 2 - len(st.session_state.shape[0]) // 2]
+        # ユーザーの入力
+        user_answer = st.text_input(f"答えを入力してください（問題 {question_count + 1}）:", key=question_count)
 
-    if st.button("🔁 リセット"):
-        st.session_state.clear()
+        # 時間チェック
+        elapsed_time = time.time() - start_time
+        if elapsed_time > time_limit:
+            st.write("時間切れです！ゲーム終了！")
+            break
 
-if __name__ == "__main__":
-    main()
+        # 答えをチェック
+        if user_answer.isdigit():
+            if int(user_answer) == correct_answer:
+                score += 1
+                st.write("正解！")
+            else:
+                st.write(f"不正解。正しい答えは {correct_answer} です。")
+            question_count += 1
+
+        # 制限時間内に問題を出す
+        if elapsed_time > time_limit:
+            break
+
+    st.write(f"ゲーム終了！ あなたのスコアは {score} です。")
