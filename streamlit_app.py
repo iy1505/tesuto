@@ -12,7 +12,9 @@ if "mode" not in st.session_state:
 if "log" not in st.session_state:
     st.session_state.log = []
 if "pomodoro_count" not in st.session_state:
-    st.session_state.pomodoro_count = 0  # 作業回数カウント
+    st.session_state.pomodoro_count = 0
+if "memo_text" not in st.session_state:
+    st.session_state.memo_text = ""
 
 # --- 時間設定（秒） ---
 WORK_DURATION = 25 * 60        # 25分
@@ -28,14 +30,13 @@ def get_current_duration():
     elif st.session_state.mode == "長休憩":
         return LONG_BREAK
 
-# --- タイマー開始ボタン ---
+# --- タイマー開始／リセットボタン ---
 col1, col2 = st.columns(2)
 with col1:
     if st.button("▶️ タイマー開始", disabled=st.session_state.timer_running):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
 
-# --- タイマーリセットボタン ---
 with col2:
     if st.button("🔁 リセット"):
         st.session_state.timer_running = False
@@ -43,6 +44,7 @@ with col2:
         st.session_state.mode = "作業"
         st.session_state.pomodoro_count = 0
         st.session_state.log = []
+        st.session_state.memo_text = ""
 
 # --- タイマーの動作 ---
 if st.session_state.timer_running and st.session_state.start_time:
@@ -55,7 +57,6 @@ if st.session_state.timer_running and st.session_state.start_time:
     st.metric(label="⏳ 残り時間", value=f"{minutes:02}:{seconds:02}")
 
     if remaining == 0:
-        # タイマー終了処理
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         st.session_state.log.append(
             f"{timestamp} - {st.session_state.mode}セッション完了 ✅"
@@ -70,11 +71,9 @@ if st.session_state.timer_running and st.session_state.start_time:
         else:
             st.session_state.mode = "作業"
 
-        # 次のセッションを即開始
         st.session_state.start_time = time.time()
         st.rerun()
     else:
-        # 毎秒更新
         time.sleep(1)
         st.rerun()
 
@@ -82,7 +81,16 @@ if st.session_state.timer_running and st.session_state.start_time:
 st.header(f"🕒 現在のモード: {st.session_state.mode}")
 st.subheader(f"🍅 完了したポモドーロ数: {st.session_state.pomodoro_count}")
 
-# --- セッションログ表示 ---
+# --- 📝 自由メモ欄 ---
+st.markdown("### 📝 メモ")
+st.session_state.memo_text = st.text_area(
+    "セッション中のメモや気づきなどを自由に書いてください：",
+    value=st.session_state.memo_text,
+    height=150,
+    key="memo_input"
+)
+
+# --- 📚 セッションログ ---
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for entry in reversed(st.session_state.log):
@@ -91,4 +99,4 @@ with st.expander("📚 セッションログ"):
         st.write("まだ記録がありません。")
 
 st.markdown("---")
-st.caption("© 2025 ポモドーロ勉強サポートアプリ")
+st.caption("ポモドーロ勉強サポートアプリ")
