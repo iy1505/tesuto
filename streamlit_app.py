@@ -114,7 +114,7 @@ def get_current_duration():
 
 # --- ログイン画面 ---
 if not st.session_state.logged_in:
-    st.title("ポモドーロ学習サポート - ログイン")
+    st.title("ポモドーロタイマー - ログイン")
 
     page = st.radio("操作を選んでください", ["ログイン", "新規登録"])
 
