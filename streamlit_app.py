@@ -5,13 +5,12 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # --- 応援メッセージ ---
 MESSAGES = [
-    "今日も一歩前進！", "集中して、未来の自分を助けよう！",
-    "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
-    "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！"
+    "🌟 今日も一歩前進！", "🔥 集中して、未来の自分を助けよう！",
+    "🚀 小さな積み重ねが大きな成果に！", "💪 やればできる、今がその時！",
+    "🌈 知識は力。コツコツ続けよう！", "📘 一歩ずつ、でも確実に前進中！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -127,7 +126,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("ログインしました")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -147,7 +146,7 @@ else:
     if st.button("ログアウト"):
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.rerun()
+        st.experimental_rerun()
 
     col1, col2 = st.columns(2)
     with col1:
@@ -183,15 +182,15 @@ else:
                     st.session_state.mode = "作業"
                 st.session_state.start_time = time.time()
                 st.session_state.motivation_message = random.choice(MESSAGES)
-                st.rerun()
+                st.experimental_rerun()
             else:
                 time.sleep(1)
-                st.rerun()
+                st.experimental_rerun()
         else:
             st.metric("残り時間", "--:--")
 
     with msg_col:
-        st.markdown("###  応援メッセージ")
+        st.markdown("### 💬 応援メッセージ")
         st.success(st.session_state.motivation_message)
 
     st.header(f"🕒 現在モード：{st.session_state.mode}")
@@ -203,5 +202,20 @@ else:
 
     # ログ表示
     with st.expander("📚 セッションログ"):
-        for entry in reversed(st.session_state.log):
-            st.markdown(f"- {
+        if st.session_state.log:
+            for entry in reversed(st.session_state.log):
+                st.markdown(f"- {entry}")
+        else:
+            st.write("まだ記録がありません。")
+
+    # 📊 グラフ表示（ユーザー別）
+    st.markdown("### 📈 ポモドーロ進捗（過去履歴）")
+    stats_df = get_user_stats(st.session_state.username)
+    if not stats_df.empty:
+        stats_df = stats_df.set_index("date")
+        st.bar_chart(stats_df)
+    else:
+        st.info("まだ記録がありません。ポモドーロを完了させるとここに表示されます。")
+
+    st.markdown("---")
+    st.caption("© 2025 ポモドーロ勉強サポートアプリ")
