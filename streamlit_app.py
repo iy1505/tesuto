@@ -72,11 +72,11 @@ if st.session_state.timer_running and st.session_state.start_time:
 
         # 次のセッションを即開始
         st.session_state.start_time = time.time()
-        st.experimental_rerun()
+        st.rerun()
     else:
         # 毎秒更新
         time.sleep(1)
-        st.experimental_rerun()
+        st.rerun()
 
 # --- 現在のモードとポモドーロ数の表示 ---
 st.header(f"🕒 現在のモード: {st.session_state.mode}")
