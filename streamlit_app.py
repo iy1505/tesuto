@@ -1,57 +1,81 @@
 import streamlit as st
 import time
-import os
-import platform
+from datetime import datetime
 
-# 時間設定（秒）
-WORK_TIME = 25 * 60
-SHORT_BREAK = 5 * 60
-LONG_BREAK = 15 * 60
-CYCLES_BEFORE_LONG_BREAK = 4
+# セッションステートの初期化
+if "timer_running" not in st.session_state:
+    st.session_state.timer_running = False
+if "start_time" not in st.session_state:
+    st.session_state.start_time = None
+if "mode" not in st.session_state:
+    st.session_state.mode = "作業"  # 作業 or 休憩
+if "log" not in st.session_state:
+    st.session_state.log = []
 
-def notify(title, message):
-    system = platform.system()
-    if system == "Darwin":  # macOS
-        os.system(f'''osascript -e 'display notification "{message}" with title "{title}"' ''')
-    elif system == "Linux":
-        os.system(f'notify-send "{title}" "{message}"')
-    elif system == "Windows":
-        # Windowsの通知はPython標準では難しいので、printで代替
-        print(f"\n🔔 {title}: {message}")
-    else:
-        print(f"\n🔔 {title}: {message}")
+# 時間設定（分単位）
+WORK_DURATION = 25 * 60  # 25分
+BREAK_DURATION = 5 * 60  # 5分
 
-def countdown(seconds):
-    while seconds:
-        mins, secs = divmod(seconds, 60)
-        print(f"\r⏳ {mins:02d}:{secs:02d}", end="")
-        time.sleep(1)
-        seconds -= 1
-    print("\r⏰ 00:00")
+# 残り時間の計算
+def get_remaining_time(start_time, duration):
+    elapsed = int(time.time() - start_time)
+    remaining = max(duration - elapsed, 0)
+    return remaining
 
-def pomodoro_cycle():
-    cycle = 0
-    while True:
-        cycle += 1
-        print(f"\n🍅 ポモドーロ {cycle} 開始！（25分）")
-        notify("ポモドーロ開始", f"{cycle} 回目の作業を始めましょう！")
-        countdown(WORK_TIME)
+# タイマー表示関数
+def display_timer(remaining):
+    minutes = remaining // 60
+    seconds = remaining % 60
+    st.metric(label="⏳ 残り時間", value=f"{minutes:02}:{seconds:02}")
 
-        if cycle % CYCLES_BEFORE_LONG_BREAK == 0:
-            print("\n🛌 長い休憩（15分）")
-            notify("休憩時間", "15分の長い休憩を取りましょう！")
-            countdown(LONG_BREAK)
+# スタート・リセットボタン
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("▶️ タイマー開始", disabled=st.session_state.timer_running):
+        st.session_state.timer_running = True
+        st.session_state.start_time = time.time()
+
+with col2:
+    if st.button("🔁 リセット"):
+        st.session_state.timer_running = False
+        st.session_state.start_time = None
+        st.session_state.mode = "作業"
+
+# タイマー処理
+if st.session_state.timer_running and st.session_state.start_time:
+    duration = WORK_DURATION if st.session_state.mode == "作業" else BREAK_DURATION
+    remaining = get_remaining_time(st.session_state.start_time, duration)
+
+    display_timer(remaining)
+
+    if remaining == 0:
+        # ログに記録
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        st.session_state.log.append(
+            f"{timestamp} - {st.session_state.mode}セッション完了 ✅"
+        )
+
+        # モード切り替え
+        if st.session_state.mode == "作業":
+            st.session_state.mode = "休憩"
         else:
-            print("\n☕ 短い休憩（5分）")
-            notify("休憩時間", "5分の短い休憩を取りましょう！")
-            countdown(SHORT_BREAK)
+            st.session_state.mode = "作業"
 
-        # 繰り返すか確認
-        cont = input("\n➡️ 続けますか？（y/n）: ").strip().lower()
-        if cont != 'y':
-            print("👋 お疲れ様でした！")
-            break
+        # タイマー再起動
+        st.session_state.start_time = time.time()
 
-if __name__ == "__main__":
-    print("=== 🎓 ポモドーロ勉強補助システム ===")
-    pomodoro_cycle()
+    # 自動更新
+    st.experimental_rerun()
+
+st.header(f"🕒 現在のモード: {st.session_state.mode}")
+
+# ログ表示
+with st.expander("📚 セッションログ"):
+    if st.session_state.log:
+        for entry in reversed(st.session_state.log):
+            st.markdown(f"- {entry}")
+    else:
+        st.write("まだ記録がありません。")
+
+st.markdown("---")
+st.caption("© 2025 ポモドーロ勉強サポートアプリ")
