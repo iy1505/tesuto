@@ -114,7 +114,7 @@ def get_current_duration():
 
 # --- ログイン画面 ---
 if not st.session_state.logged_in:
-    st.title("📚ポモドーロタイマー：ログイン")
+    st.title("🔐 ポモドーロ学習サポートタイマー - ログイン")
 
     page = st.radio("操作を選んでください", ["ログイン", "新規登録"])
 
@@ -126,7 +126,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("ログインしました")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -146,7 +146,7 @@ else:
     if st.button("ログアウト"):
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.experimental_rerun()
+        st.rerun()
 
     col1, col2 = st.columns(2)
     with col1:
@@ -182,15 +182,15 @@ else:
                     st.session_state.mode = "作業"
                 st.session_state.start_time = time.time()
                 st.session_state.motivation_message = random.choice(MESSAGES)
-                st.experimental_rerun()
+                st.rerun()
             else:
                 time.sleep(1)
-                st.experimental_rerun()
+                st.rerun()
         else:
             st.metric("残り時間", "--:--")
 
     with msg_col:
-        st.markdown("###  応援メッセージ")
+        st.markdown("### 💬 応援メッセージ")
         st.success(st.session_state.motivation_message)
 
     st.header(f"🕒 現在モード：{st.session_state.mode}")
@@ -218,4 +218,4 @@ else:
         st.info("まだ記録がありません。ポモドーロを完了させるとここに表示されます。")
 
     st.markdown("---")
-    st.caption("© 2025 ポモドーロ勉強サポートアプリ")
+    st.caption("
