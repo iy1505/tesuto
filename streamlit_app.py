@@ -217,5 +217,6 @@ else:
     else:
         st.info("まだ記録がありません。ポモドーロを完了させるとここに表示されます。")
 
-    st.markdown("---")
-    st.caption("
+        st.markdown("---")
+    st.caption("© 2025 ポモドーロ勉強サポートアプリ")
+
