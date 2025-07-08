@@ -88,26 +88,20 @@ def get_user_stats(username):
 init_db()
 
 # --- セッション変数初期化 ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
-if "timer_running" not in st.session_state:
-    st.session_state.timer_running = False
-if "start_time" not in st.session_state:
-    st.session_state.start_time = None
-if "mode" not in st.session_state:
-    st.session_state.mode = "作業"
-if "pomodoro_count" not in st.session_state:
-    st.session_state.pomodoro_count = 0
-if "log" not in st.session_state:
-    st.session_state.log = []
-if "memo_text" not in st.session_state:
-    st.session_state.memo_text = ""
-if "motivation_message" not in st.session_state:
-    st.session_state.motivation_message = random.choice(MESSAGES)
-if "sound_on" not in st.session_state:
-    st.session_state.sound_on = True  # 音ありモード初期値
+for key, default in {
+    "logged_in": False,
+    "username": "",
+    "timer_running": False,
+    "start_time": None,
+    "mode": "作業",
+    "pomodoro_count": 0,
+    "log": [],
+    "memo_text": "",
+    "motivation_message": random.choice(MESSAGES),
+    "sound_on": True
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 # --- 時間取得関数 ---
 def get_current_duration():
@@ -128,7 +122,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("ログインしました")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -148,9 +142,9 @@ else:
     if st.button("ログアウト"):
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.experimental_rerun()
+        st.rerun()
 
-    col1, col2, col3 = st.columns([1,1,2])
+    col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
         if st.button("▶️ 開始", disabled=st.session_state.timer_running):
             st.session_state.timer_running = True
@@ -165,13 +159,12 @@ else:
             st.session_state.log = []
             st.session_state.memo_text = ""
             st.session_state.motivation_message = random.choice(MESSAGES)
+            st.rerun()
     with col3:
-        # 音あり/なし切り替え
-        sound_toggle = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on)
-        st.session_state.sound_on = sound_toggle
+        st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on)
 
     # タイマー処理
-    timer_col, msg_col = st.columns([2,3])
+    timer_col, msg_col = st.columns([2, 3])
     with timer_col:
         placeholder = st.empty()
 
@@ -185,11 +178,9 @@ else:
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 st.session_state.log.append(f"{timestamp} - {st.session_state.mode} セッション終了 ✅")
 
-                # 音鳴らし処理（音ありモードのみ）
                 if st.session_state.sound_on:
                     st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
-                # モード切替
                 if st.session_state.mode == "作業":
                     st.session_state.pomodoro_count += 1
                     st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
@@ -198,10 +189,10 @@ else:
 
                 st.session_state.start_time = time.time()
                 st.session_state.motivation_message = random.choice(MESSAGES)
-                st.experimental_rerun()
+                st.rerun()
             else:
                 time.sleep(1)
-                st.experimental_rerun()
+                st.rerun()
         else:
             placeholder.metric("残り時間", "--:--")
 
@@ -224,7 +215,7 @@ else:
         else:
             st.write("まだ記録がありません。")
 
-    # 📊 グラフ表示（ユーザー別）
+    # 📊 グラフ表示
     st.markdown("### 📈 ポモドーロ進捗（過去履歴）")
     stats_df = get_user_stats(st.session_state.username)
     if not stats_df.empty:
