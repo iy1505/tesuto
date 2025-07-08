@@ -212,12 +212,13 @@ else:
                 st.session_state.motivation_message = random.choice(MESSAGES)
                 st.rerun()
             else:
+                # 1秒後にページを自動更新して残り時間を更新する
                 st.markdown(
                     """
                     <script>
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 1000);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                     </script>
                     """,
                     unsafe_allow_html=True
@@ -234,4 +235,24 @@ else:
 
     # メモ欄
     st.markdown("### 📝 メモ")
-    st.session_state.memo_text = st.text_area("学習中のメモ:", value=
+    st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
+
+    # ログ表示
+    with st.expander("📚 セッションログ"):
+        if st.session_state.log:
+            for entry in reversed(st.session_state.log):
+                st.markdown(f"- {entry}")
+        else:
+            st.write("まだ記録がありません。")
+
+    # 📊 グラフ表示（ユーザー別）
+    st.markdown("### 📈 ポモドーロ進捗（過去履歴）")
+    stats_df = get_user_stats(st.session_state.username)
+    if not stats_df.empty:
+        stats_df = stats_df.set_index("date")
+        st.bar_chart(stats_df)
+    else:
+        st.info("まだ記録がありません。ポモドーロを完了させるとここに表示されます。")
+
+    st.markdown("---")
+    st.caption("© 2025 ポモドーロ勉強サポートアプリ")
