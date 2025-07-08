@@ -84,17 +84,6 @@ def get_user_stats(username):
     conn.close()
     return df
 
-# --- 音を鳴らす関数 ---
-def play_sound():
-    st.markdown(
-        """
-        <audio autoplay>
-            <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
-        </audio>
-        """,
-        unsafe_allow_html=True
-    )
-
 # --- 初期化 ---
 init_db()
 
@@ -118,7 +107,7 @@ if "memo_text" not in st.session_state:
 if "motivation_message" not in st.session_state:
     st.session_state.motivation_message = random.choice(MESSAGES)
 if "sound_on" not in st.session_state:
-    st.session_state.sound_on = True
+    st.session_state.sound_on = True  # 音ありモード初期値
 
 # --- 時間取得関数 ---
 def get_current_duration():
@@ -139,7 +128,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("ログインしました")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -157,16 +146,11 @@ else:
     st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
     if st.button("ログアウト"):
-        record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.rerun()
+        st.experimental_rerun()
 
-    # 音あり／音なし切替チェックボックス
-    sound_toggle = st.checkbox("🔈 音ありモード", value=st.session_state.sound_on)
-    st.session_state.sound_on = sound_toggle
-
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([1,1,2])
     with col1:
         if st.button("▶️ 開始", disabled=st.session_state.timer_running):
             st.session_state.timer_running = True
@@ -181,27 +165,31 @@ else:
             st.session_state.log = []
             st.session_state.memo_text = ""
             st.session_state.motivation_message = random.choice(MESSAGES)
+    with col3:
+        # 音あり/なし切り替え
+        sound_toggle = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on)
+        st.session_state.sound_on = sound_toggle
 
     # タイマー処理
-    timer_col, msg_col = st.columns(2)
+    timer_col, msg_col = st.columns([2,3])
     with timer_col:
         placeholder = st.empty()
+
         if st.session_state.timer_running and st.session_state.start_time:
             duration = get_current_duration()
             elapsed = int(time.time() - st.session_state.start_time)
             remaining = max(duration - elapsed, 0)
-
-            minutes = remaining // 60
-            seconds = remaining % 60
-            placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
+            placeholder.metric("残り時間", f"{remaining // 60:02}:{remaining % 60:02}")
 
             if remaining == 0:
-                if st.session_state.sound_on:
-                    play_sound()
-
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 st.session_state.log.append(f"{timestamp} - {st.session_state.mode} セッション終了 ✅")
 
+                # 音鳴らし処理（音ありモードのみ）
+                if st.session_state.sound_on:
+                    st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
+
+                # モード切替
                 if st.session_state.mode == "作業":
                     st.session_state.pomodoro_count += 1
                     st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
@@ -210,19 +198,10 @@ else:
 
                 st.session_state.start_time = time.time()
                 st.session_state.motivation_message = random.choice(MESSAGES)
-                st.rerun()
+                st.experimental_rerun()
             else:
-                # 1秒後にページを自動更新して残り時間を更新する
-                st.markdown(
-                    """
-                    <script>
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                    </script>
-                    """,
-                    unsafe_allow_html=True
-                )
+                time.sleep(1)
+                st.experimental_rerun()
         else:
             placeholder.metric("残り時間", "--:--")
 
