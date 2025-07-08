@@ -164,54 +164,33 @@ else:
             st.session_state.memo_text = ""
             st.session_state.motivation_message = random.choice(MESSAGES)
 
-   # タイマー処理
-timer_col, msg_col = st.columns(2)
-with timer_col:
-    placeholder = st.empty()
-
-    if st.session_state.timer_running and st.session_state.start_time:
-        duration = get_current_duration()
-        elapsed = int(time.time() - st.session_state.start_time)
-        remaining = max(duration - elapsed, 0)
-
-        minutes = remaining // 60
-        seconds = remaining % 60
-
-        # タイマー表示
-        placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
-
-        if remaining == 0:
-            # セッション終了処理
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            st.session_state.log.append(f"{timestamp} - {st.session_state.mode} セッション終了 ✅")
-
-            if st.session_state.mode == "作業":
-                st.session_state.pomodoro_count += 1
-                st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
+    # タイマー処理
+    timer_col, msg_col = st.columns(2)
+    with timer_col:
+        if st.session_state.timer_running and st.session_state.start_time:
+            duration = get_current_duration()
+            elapsed = int(time.time() - st.session_state.start_time)
+            remaining = max(duration - elapsed, 0)
+            st.metric("残り時間", f"{remaining // 60:02}:{remaining % 60:02}")
+            if remaining == 0:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                st.session_state.log.append(f"{timestamp} - {st.session_state.mode} セッション終了 ✅")
+                if st.session_state.mode == "作業":
+                    st.session_state.pomodoro_count += 1
+                    st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
+                else:
+                    st.session_state.mode = "作業"
+                st.session_state.start_time = time.time()
+                st.session_state.motivation_message = random.choice(MESSAGES)
+                st.rerun()
             else:
-                st.session_state.mode = "作業"
-
-            st.session_state.start_time = time.time()
-            st.session_state.motivation_message = random.choice(MESSAGES)
-            st.experimental_rerun()
-
+                time.sleep(1)
+                st.rerun()
         else:
-            # JavaScriptで1秒ごとに自動リロード（チラつき・白画面なし）
-            st.markdown(
-                """
-                <script>
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1000);
-                </script>
-                """,
-                unsafe_allow_html=True
-            )
-    else:
-        placeholder.metric("残り時間", "--:--")
+            st.metric("残り時間", "--:--")
 
     with msg_col:
-        st.markdown("###")
+        st.markdown("### 💬 応援メッセージ")
         st.success(st.session_state.motivation_message)
 
     st.header(f"🕒 現在モード：{st.session_state.mode}")
