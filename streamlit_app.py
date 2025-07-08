@@ -139,7 +139,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("ログインしました")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -160,7 +160,7 @@ else:
         record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.experimental_rerun()
+        st.rerun()
 
     # 音あり／音なし切替チェックボックス
     sound_toggle = st.checkbox("🔈 音ありモード", value=st.session_state.sound_on)
@@ -196,7 +196,6 @@ else:
             placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
             if remaining == 0:
-                # 音ありなら鳴らす
                 if st.session_state.sound_on:
                     play_sound()
 
@@ -211,9 +210,8 @@ else:
 
                 st.session_state.start_time = time.time()
                 st.session_state.motivation_message = random.choice(MESSAGES)
-                st.experimental_rerun()
+                st.rerun()
             else:
-                # 1秒後にページ自動リロード（チラつき対策）
                 st.markdown(
                     """
                     <script>
@@ -236,24 +234,4 @@ else:
 
     # メモ欄
     st.markdown("### 📝 メモ")
-    st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
-
-    # ログ表示
-    with st.expander("📚 セッションログ"):
-        if st.session_state.log:
-            for entry in reversed(st.session_state.log):
-                st.markdown(f"- {entry}")
-        else:
-            st.write("まだ記録がありません。")
-
-    # 📊 グラフ表示（ユーザー別）
-    st.markdown("### 📈 ポモドーロ進捗（過去履歴）")
-    stats_df = get_user_stats(st.session_state.username)
-    if not stats_df.empty:
-        stats_df = stats_df.set_index("date")
-        st.bar_chart(stats_df)
-    else:
-        st.info("まだ記録がありません。ポモドーロを完了させるとここに表示されます。")
-
-    st.markdown("---")
-    st.caption("© 2025 ポモドーロ勉強サポートアプリ")
+    st.session_state.memo_text = st.text_area("学習中のメモ:", value=
