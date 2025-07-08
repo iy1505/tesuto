@@ -190,7 +190,7 @@ else:
             st.metric("残り時間", "--:--")
 
     with msg_col:
-        st.markdown("### 💬 ")
+        st.markdown("###")
         st.success(st.session_state.motivation_message)
 
     st.header(f"🕒 現在モード：{st.session_state.mode}")
