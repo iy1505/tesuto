@@ -187,12 +187,13 @@ if st.session_state.timer_running and st.session_state.start_time:
             st.session_state.mode = "作業"
 
         st.session_state.start_time = time.time()
+
+        # 応援メッセージを更新
         st.session_state.motivation_message = random.choice(MESSAGES)
 
         st.rerun()
 
     time.sleep(1)
-    st.rerun()
 else:
     timer_placeholder.metric("残り時間", "--:--")
 
@@ -203,6 +204,10 @@ st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}
 # メモ入力欄（ここを修正）
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
+
+# 応援メッセージ
+st.markdown("### 🏆 今日のモチベーション")
+st.success(st.session_state.motivation_message)
 
 # セッションログ
 with st.expander("📚 セッションログ"):
