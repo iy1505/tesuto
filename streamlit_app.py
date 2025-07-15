@@ -88,13 +88,12 @@ def get_user_stats(username):
 
 # 自動更新を手動で実装
 def auto_refresh():
-    """自動更新のためのヘルパー関数"""
     if 'last_refresh' not in st.session_state:
         st.session_state.last_refresh = time.time()
     current_time = time.time()
-    if current_time - st.session_state.last_refresh >= 1:  # 1秒ごとに更新
+    if current_time - st.session_state.last_refresh >= 1:
         st.session_state.last_refresh = current_time
-        st.experimental_rerun()
+        st.rerun()
 
 # 初期化
 init_db()
@@ -121,15 +120,16 @@ if not st.session_state.logged_in:
         p = st.text_input("パスワード", type="password")
         login_clicked = st.button("ログイン", key="login_button")
 
-        if login_clicked and verify_user(u, p):
-            st.session_state.logged_in = True
-            st.session_state.username = u
-            st.success("ログインしました")
-            st.experimental_rerun()
-        elif login_clicked:
-            st.error("認証失敗")
+        if login_clicked:
+            if verify_user(u, p):
+                st.session_state.logged_in = True
+                st.session_state.username = u
+                st.success("ログインしました")
+                st.rerun()
+            else:
+                st.error("認証失敗")
 
-    else:  # 新規登録
+    else:
         u = st.text_input("新しいユーザー名")
         e = st.text_input("メールアドレス")
         p = st.text_input("パスワード", type="password")
@@ -140,14 +140,16 @@ if not st.session_state.logged_in:
                 st.success("登録完了！ログインしてください")
             else:
                 st.error("そのユーザー名は既に使われています")
+
     st.stop()
 
+# ログイン後のUI
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
 if st.button("ログアウト", key="logout_button"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.experimental_rerun()
+    st.rerun()
 
 c1, c2, c3 = st.columns([1, 1, 2])
 with c1:
@@ -164,11 +166,11 @@ with c2:
         st.session_state.log = []
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun()
+        st.rerun()
 with c3:
     st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on, key="sound_checkbox")
 
-# 自動更新の実装
+# タイマー動作
 if st.session_state.timer_running:
     auto_refresh()
 
@@ -202,7 +204,6 @@ with msg_c:
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
-# メモとログとグラフ
 st.markdown("### 📝 メモ")
 st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
 
