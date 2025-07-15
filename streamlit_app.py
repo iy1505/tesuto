@@ -18,7 +18,7 @@ WORK_DURATION = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 20 * 60
 
-# --- DB 初期化など ---
+# --- DB 初期化 ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -164,16 +164,14 @@ with c2:
 with c3:
     st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on, key="sound_checkbox")
 
-# タイマー部分の表示更新用プレースホルダー
+# タイマー表示のプレースホルダー
 timer_placeholder = st.empty()
 
-# タイマー動作
 if st.session_state.timer_running and st.session_state.start_time:
     dur = get_current_duration()
     elapsed = int(time.time() - st.session_state.start_time)
     rem = max(dur - elapsed, 0)
 
-    # タイマーの数字だけ更新（点滅軽減）
     timer_placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
 
     if rem == 0:
@@ -191,21 +189,20 @@ if st.session_state.timer_running and st.session_state.start_time:
         st.session_state.start_time = time.time()
         st.session_state.motivation_message = random.choice(MESSAGES)
 
-        st.rerun()  # モード変更時に即時更新
+        st.rerun()
 
-    # 1秒ごとに更新を促す
     time.sleep(1)
     st.rerun()
 else:
     timer_placeholder.metric("残り時間", "--:--")
 
-# モード＆完了ポモドーロ数表示
+# モード・ポモドーロ数表示
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
-# メモ入力欄
+# メモ入力欄（ここを修正）
 st.markdown("### 📝 メモ")
-st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
+st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
 # セッションログ
 with st.expander("📚 セッションログ"):
