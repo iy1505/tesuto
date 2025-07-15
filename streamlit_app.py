@@ -86,17 +86,18 @@ def get_user_stats(username):
     conn.close()
     return df
 
-# 自動更新を手動で実装
-def auto_refresh():
-    if 'last_refresh' not in st.session_state:
-        st.session_state.last_refresh = time.time()
-    current_time = time.time()
-    if current_time - st.session_state.last_refresh >= 1:
-        st.session_state.last_refresh = current_time
-        st.rerun()
+def get_current_duration():
+    mode = st.session_state.mode
+    if mode == "作業":
+        return WORK_DURATION
+    elif mode == "長休憩":
+        return LONG_BREAK
+    else:
+        return SHORT_BREAK
 
-# 初期化
+# --- 初期化 ---
 init_db()
+
 for key, default in {
     "logged_in": False, "username": "", "timer_running": False,
     "start_time": None, "mode": "作業", "pomodoro_count": 0,
@@ -106,21 +107,15 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
-def get_current_duration():
-    mode = st.session_state.mode
-    return WORK_DURATION if mode == "作業" else LONG_BREAK if mode == "長休憩" else SHORT_BREAK
-
-# UI
+# --- ログイン画面 ---
 if not st.session_state.logged_in:
     st.title("ポモドーロ学習サポートタイマー")
     page = st.radio("操作を選んでください", ["ログイン", "新規登録"])
 
     if page == "ログイン":
-        u = st.text_input("ユーザー名")
-        p = st.text_input("パスワード", type="password")
-        login_clicked = st.button("ログイン", key="login_button")
-
-        if login_clicked:
+        u = st.text_input("ユーザー名", key="login_user")
+        p = st.text_input("パスワード", type="password", key="login_pass")
+        if st.button("ログイン", key="login_btn"):
             if verify_user(u, p):
                 st.session_state.logged_in = True
                 st.session_state.username = u
@@ -128,36 +123,34 @@ if not st.session_state.logged_in:
                 st.rerun()
             else:
                 st.error("認証失敗")
-
     else:
-        u = st.text_input("新しいユーザー名")
-        e = st.text_input("メールアドレス")
-        p = st.text_input("パスワード", type="password")
-        register_clicked = st.button("登録", key="register_button")
-
-        if register_clicked:
+        u = st.text_input("新しいユーザー名", key="reg_user")
+        e = st.text_input("メールアドレス", key="reg_email")
+        p = st.text_input("パスワード", type="password", key="reg_pass")
+        if st.button("登録", key="reg_btn"):
             if add_user(u, e, p):
                 st.success("登録完了！ログインしてください")
             else:
                 st.error("そのユーザー名は既に使われています")
-
     st.stop()
 
-# ログイン後のUI
+# --- メイン画面 ---
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
-if st.button("ログアウト", key="logout_button"):
+if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
     st.rerun()
 
 c1, c2, c3 = st.columns([1, 1, 2])
+
 with c1:
-    if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_button"):
+    if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
+
 with c2:
-    if st.button("🔁 リセット", key="reset_button"):
+    if st.button("🔁 リセット", key="reset_btn"):
         record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.timer_running = False
         st.session_state.start_time = None
@@ -167,46 +160,54 @@ with c2:
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
         st.rerun()
+
 with c3:
     st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on, key="sound_checkbox")
 
+# タイマー部分の表示更新用プレースホルダー
+timer_placeholder = st.empty()
+
 # タイマー動作
-if st.session_state.timer_running:
-    auto_refresh()
+if st.session_state.timer_running and st.session_state.start_time:
+    dur = get_current_duration()
+    elapsed = int(time.time() - st.session_state.start_time)
+    rem = max(dur - elapsed, 0)
 
-timer_c, msg_c = st.columns([2, 3])
-with timer_c:
-    placeholder = st.empty()
-    if st.session_state.timer_running and st.session_state.start_time:
-        dur = get_current_duration()
-        elapsed = int(time.time() - st.session_state.start_time)
-        rem = max(dur - elapsed, 0)
-        placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
-        if rem == 0:
-            ts = datetime.now().strftime("%H:%M:%S")
-            st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-            if st.session_state.sound_on:
-                st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
-            if st.session_state.mode == "作業":
-                st.session_state.pomodoro_count += 1
-                st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
-            else:
-                st.session_state.mode = "作業"
-            st.session_state.start_time = time.time()
-            st.session_state.motivation_message = random.choice(MESSAGES)
-    else:
-        placeholder.metric("残り時間", "--:--")
+    # タイマーの数字だけ更新（点滅軽減）
+    timer_placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
 
-with msg_c:
-    st.markdown("###")
-    st.success(st.session_state.motivation_message)
+    if rem == 0:
+        ts = datetime.now().strftime("%H:%M:%S")
+        st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
+        if st.session_state.sound_on:
+            st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
+        if st.session_state.mode == "作業":
+            st.session_state.pomodoro_count += 1
+            st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
+        else:
+            st.session_state.mode = "作業"
+
+        st.session_state.start_time = time.time()
+        st.session_state.motivation_message = random.choice(MESSAGES)
+
+        st.rerun()  # モード変更時に即時更新
+
+    # 1秒ごとに更新を促す
+    time.sleep(1)
+    st.experimental_rerun()
+else:
+    timer_placeholder.metric("残り時間", "--:--")
+
+# モード＆完了ポモドーロ数表示
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
+# メモ入力欄
 st.markdown("### 📝 メモ")
-st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
+st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
+# セッションログ
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for e in reversed(st.session_state.log):
@@ -214,6 +215,7 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
+# 過去の進捗グラフ
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
 if not df.empty:
