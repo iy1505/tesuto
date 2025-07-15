@@ -5,21 +5,17 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
-from streamlit_extras.st_autorefresh import st_autorefresh
-
 # --- 応援メッセージ ---
 MESSAGES = [
     "今日も一歩前進！", "集中して、未来の自分を助けよう！",
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！"
 ]
-
 # --- タイマー設定（秒） ---
 WORK_DURATION = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 20 * 60
-
-# --- DB 初期化など（省略せずこのまま同じ） ---
+# --- DB 初期化など ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -36,7 +32,6 @@ def init_db():
                     completed_pomodoros INTEGER
                 )''')
     conn.commit(); conn.close()
-
 def add_user(username, email, password):
     conn = sqlite3.connect("users.db"); c = conn.cursor()
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -48,7 +43,6 @@ def add_user(username, email, password):
         return False
     finally:
         conn.close()
-
 def verify_user(username, password):
     conn = sqlite3.connect("users.db"); c = conn.cursor()
     c.execute("SELECT password FROM users WHERE username=?", (username,))
@@ -56,7 +50,6 @@ def verify_user(username, password):
     if data:
         return bcrypt.checkpw(password.encode(), data[0].encode())
     return False
-
 def record_session(username, count):
     conn = sqlite3.connect("users.db"); c = conn.cursor()
     today = date.today().isoformat()
@@ -69,7 +62,6 @@ def record_session(username, count):
         c.execute("INSERT INTO sessions (username, date, completed_pomodoros) VALUES (?, ?, ?)",
                   (username, today, count))
     conn.commit(); conn.close()
-
 def get_user_stats(username):
     conn = sqlite3.connect("users.db")
     df = pd.read_sql_query(
@@ -79,7 +71,16 @@ def get_user_stats(username):
     )
     conn.close()
     return df
-
+ 
+# 自動更新を手動で実装
+def auto_refresh():
+    """自動更新のためのヘルパー関数"""
+    if 'last_refresh' not in st.session_state:
+        st.session_state.last_refresh = time.time()
+    current_time = time.time()
+    if current_time - st.session_state.last_refresh >= 1:  # 1秒ごとに更新
+        st.session_state.last_refresh = current_time
+        st.rerun()
 # 初期化
 init_db()
 for key, default in {
@@ -90,11 +91,9 @@ for key, default in {
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
-
 def get_current_duration():
     mode = st.session_state.mode
     return WORK_DURATION if mode == "作業" else LONG_BREAK if mode == "長休憩" else SHORT_BREAK
-
 # UI
 if not st.session_state.logged_in:
     st.title("ポモドーロ学習サポートタイマー")
@@ -114,12 +113,10 @@ if not st.session_state.logged_in:
             else:
                 st.error("そのユーザー名は既に使われています")
     st.stop()
-
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 if st.button("ログアウト"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False; st.rerun()
-
 c1, c2, c3 = st.columns([1, 1, 2])
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running):
@@ -134,10 +131,9 @@ with c2:
         st.rerun()
 with c3:
     st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on)
-
-# 自動再描画：1秒ごと
-st_autorefresh(interval=1000, limit=None, key="timer")
-
+# 自動更新の実装
+if st.session_state.timer_running:
+    auto_refresh()
 timer_c, msg_c = st.columns([2, 3])
 with timer_c:
     placeholder = st.empty()
@@ -160,14 +156,11 @@ with timer_c:
             st.session_state.motivation_message = random.choice(MESSAGES)
     else:
         placeholder.metric("残り時間", "--:--")
-
 with msg_c:
     st.markdown("###")
     st.success(st.session_state.motivation_message)
-
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
-
 # メモとログとグラフ
 st.markdown("### 📝 メモ"); st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
 with st.expander("📚 セッションログ"):
@@ -181,5 +174,4 @@ if not df.empty:
     df = df.set_index("date"); st.bar_chart(df)
 else:
     st.info("まだ記録がありません。")
-
 st.markdown("---"); st.caption("© 2025 ポモドーロ勉強サポートアプリ")
