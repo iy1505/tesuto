@@ -195,7 +195,7 @@ if st.session_state.timer_running and st.session_state.start_time:
 
     # 1秒ごとに更新を促す
     time.sleep(1)
-    st.experimental_rerun()
+    st.rerun()
 else:
     timer_placeholder.metric("残り時間", "--:--")
 
