@@ -142,60 +142,43 @@ if st.button("ログアウト", key="logout_btn"):
     st.session_state.logged_in = False
     st.rerun()
 
-c1, c2, c3 = st.columns([1, 1, 2])
+# タイマーと応援メッセージを横並びに表示
+left_col, right_col = st.columns([2, 3])
 
-with c1:
-    if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
-        st.session_state.timer_running = True
-        st.session_state.start_time = time.time()
+# タイマー表示
+with left_col:
+    timer_placeholder = st.empty()
+    if st.session_state.timer_running and st.session_state.start_time:
+        dur = get_current_duration()
+        elapsed = int(time.time() - st.session_state.start_time)
+        rem = max(dur - elapsed, 0)
+        timer_placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
 
-with c2:
-    if st.button("🔁 リセット", key="reset_btn"):
-        record_session(st.session_state.username, st.session_state.pomodoro_count)
-        st.session_state.timer_running = False
-        st.session_state.start_time = None
-        st.session_state.mode = "作業"
-        st.session_state.pomodoro_count = 0
-        st.session_state.log = []
-        st.session_state.memo_text = ""
-        st.session_state.motivation_message = random.choice(MESSAGES)
+        if rem == 0:
+            ts = datetime.now().strftime("%H:%M:%S")
+            st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
+            if st.session_state.sound_on:
+                st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
+
+            if st.session_state.mode == "作業":
+                st.session_state.pomodoro_count += 1
+                st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
+            else:
+                st.session_state.mode = "作業"
+
+            st.session_state.start_time = time.time()
+            st.session_state.motivation_message = random.choice(MESSAGES)
+            st.rerun()
+
+        time.sleep(1)
         st.rerun()
+    else:
+        timer_placeholder.metric("残り時間", "--:--")
 
-with c3:
-    st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on, key="sound_checkbox")
-
-# タイマー表示のプレースホルダー
-timer_placeholder = st.empty()
-
-if st.session_state.timer_running and st.session_state.start_time:
-    dur = get_current_duration()
-    elapsed = int(time.time() - st.session_state.start_time)
-    rem = max(dur - elapsed, 0)
-
-    timer_placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
-
-    if rem == 0:
-        ts = datetime.now().strftime("%H:%M:%S")
-        st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-        if st.session_state.sound_on:
-            st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
-
-        if st.session_state.mode == "作業":
-            st.session_state.pomodoro_count += 1
-            st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
-        else:
-            st.session_state.mode = "作業"
-
-        st.session_state.start_time = time.time()
-
-        # 応援メッセージを更新
-        st.session_state.motivation_message = random.choice(MESSAGES)
-
-        st.rerun()
-
-    time.sleep(1)
-else:
-    timer_placeholder.metric("残り時間", "--:--")
+# 応援メッセージ表示
+with right_col:
+    st.markdown("### 🏆 今日のモチベーション")
+    st.success(st.session_state.motivation_message)
 
 # モード・ポモドーロ数表示
 st.header(f"🕒 現在モード：{st.session_state.mode}")
@@ -204,10 +187,6 @@ st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}
 # メモ入力欄（ここを修正）
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
-
-# 応援メッセージ
-st.markdown("### 🏆 今日のモチベーション")
-st.success(st.session_state.motivation_message)
 
 # セッションログ
 with st.expander("📚 セッションログ"):
