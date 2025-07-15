@@ -196,7 +196,7 @@ with left_col:
 
 # 応援メッセージ表示
 with right_col:
-    st.markdown("### 🏆 今日のモチベーション")
+    st.markdown("###")
     st.success(st.session_state.motivation_message)
 
 # モード・ポモドーロ数表示
