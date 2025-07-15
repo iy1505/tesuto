@@ -142,6 +142,27 @@ if st.button("ログアウト", key="logout_btn"):
     st.session_state.logged_in = False
     st.rerun()
 
+# --- スタートボタンとリセットボタンをタイマーの上に表示 ---
+st.markdown("### タイマー操作")
+
+c1, c2 = st.columns([1, 1])
+with c1:
+    if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
+        st.session_state.timer_running = True
+        st.session_state.start_time = time.time()
+
+with c2:
+    if st.button("🔁 リセット", key="reset_btn"):
+        record_session(st.session_state.username, st.session_state.pomodoro_count)
+        st.session_state.timer_running = False
+        st.session_state.start_time = None
+        st.session_state.mode = "作業"
+        st.session_state.pomodoro_count = 0
+        st.session_state.log = []
+        st.session_state.memo_text = ""
+        st.session_state.motivation_message = random.choice(MESSAGES)
+        st.rerun()
+
 # タイマーと応援メッセージを横並びに表示
 left_col, right_col = st.columns([2, 3])
 
@@ -170,8 +191,6 @@ with left_col:
             st.session_state.motivation_message = random.choice(MESSAGES)
             st.rerun()
 
-        time.sleep(1)
-        st.rerun()
     else:
         timer_placeholder.metric("残り時間", "--:--")
 
