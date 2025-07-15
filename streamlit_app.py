@@ -5,16 +5,19 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
+
 # --- 応援メッセージ ---
 MESSAGES = [
     "今日も一歩前進！", "集中して、未来の自分を助けよう！",
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！"
 ]
+
 # --- タイマー設定（秒） ---
 WORK_DURATION = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 20 * 60
+
 # --- DB 初期化など ---
 def init_db():
     conn = sqlite3.connect("users.db")
@@ -31,27 +34,36 @@ def init_db():
                     date TEXT,
                     completed_pomodoros INTEGER
                 )''')
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
+
 def add_user(username, email, password):
-    conn = sqlite3.connect("users.db"); c = conn.cursor()
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     try:
         c.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
                   (username, email, hashed_pw))
-        conn.commit(); return True
+        conn.commit()
+        return True
     except sqlite3.IntegrityError:
         return False
     finally:
         conn.close()
+
 def verify_user(username, password):
-    conn = sqlite3.connect("users.db"); c = conn.cursor()
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
     c.execute("SELECT password FROM users WHERE username=?", (username,))
-    data = c.fetchone(); conn.close()
+    data = c.fetchone()
+    conn.close()
     if data:
         return bcrypt.checkpw(password.encode(), data[0].encode())
     return False
+
 def record_session(username, count):
-    conn = sqlite3.connect("users.db"); c = conn.cursor()
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
     today = date.today().isoformat()
     c.execute("SELECT completed_pomodoros FROM sessions WHERE username=? AND date=?", (username, today))
     row = c.fetchone()
@@ -61,7 +73,9 @@ def record_session(username, count):
     else:
         c.execute("INSERT INTO sessions (username, date, completed_pomodoros) VALUES (?, ?, ?)",
                   (username, today, count))
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
+
 def get_user_stats(username):
     conn = sqlite3.connect("users.db")
     df = pd.read_sql_query(
@@ -71,7 +85,7 @@ def get_user_stats(username):
     )
     conn.close()
     return df
- 
+
 # 自動更新を手動で実装
 def auto_refresh():
     """自動更新のためのヘルパー関数"""
@@ -80,7 +94,8 @@ def auto_refresh():
     current_time = time.time()
     if current_time - st.session_state.last_refresh >= 1:  # 1秒ごとに更新
         st.session_state.last_refresh = current_time
-        st.rerun()
+        st.experimental_rerun()
+
 # 初期化
 init_db()
 for key, default in {
@@ -91,49 +106,72 @@ for key, default in {
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
 def get_current_duration():
     mode = st.session_state.mode
     return WORK_DURATION if mode == "作業" else LONG_BREAK if mode == "長休憩" else SHORT_BREAK
+
 # UI
 if not st.session_state.logged_in:
     st.title("ポモドーロ学習サポートタイマー")
     page = st.radio("操作を選んでください", ["ログイン", "新規登録"])
+
     if page == "ログイン":
-        u = st.text_input("ユーザー名"); p = st.text_input("パスワード", type="password")
-        if st.button("ログイン") and verify_user(u, p):
-            st.session_state.logged_in = True; st.session_state.username = u
-            st.success("ログインしました"); st.rerun()
-        elif st.button("ログイン"):
+        u = st.text_input("ユーザー名")
+        p = st.text_input("パスワード", type="password")
+        login_clicked = st.button("ログイン", key="login_button")
+
+        if login_clicked and verify_user(u, p):
+            st.session_state.logged_in = True
+            st.session_state.username = u
+            st.success("ログインしました")
+            st.experimental_rerun()
+        elif login_clicked:
             st.error("認証失敗")
-    else:
-        u = st.text_input("新しいユーザー名"); e = st.text_input("メールアドレス"); p = st.text_input("パスワード", type="password")
-        if st.button("登録"):
+
+    else:  # 新規登録
+        u = st.text_input("新しいユーザー名")
+        e = st.text_input("メールアドレス")
+        p = st.text_input("パスワード", type="password")
+        register_clicked = st.button("登録", key="register_button")
+
+        if register_clicked:
             if add_user(u, e, p):
                 st.success("登録完了！ログインしてください")
             else:
                 st.error("そのユーザー名は既に使われています")
     st.stop()
+
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
-if st.button("ログアウト"):
+
+if st.button("ログアウト", key="logout_button"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
-    st.session_state.logged_in = False; st.rerun()
+    st.session_state.logged_in = False
+    st.experimental_rerun()
+
 c1, c2, c3 = st.columns([1, 1, 2])
 with c1:
-    if st.button("▶️ 開始", disabled=st.session_state.timer_running):
-        st.session_state.timer_running = True; st.session_state.start_time = time.time()
+    if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_button"):
+        st.session_state.timer_running = True
+        st.session_state.start_time = time.time()
 with c2:
-    if st.button("🔁 リセット"):
+    if st.button("🔁 リセット", key="reset_button"):
         record_session(st.session_state.username, st.session_state.pomodoro_count)
-        st.session_state.timer_running = False; st.session_state.start_time = None
-        st.session_state.mode = "作業"; st.session_state.pomodoro_count = 0
-        st.session_state.log = []; st.session_state.memo_text = ""
+        st.session_state.timer_running = False
+        st.session_state.start_time = None
+        st.session_state.mode = "作業"
+        st.session_state.pomodoro_count = 0
+        st.session_state.log = []
+        st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.rerun()
+        st.experimental_rerun()
 with c3:
-    st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on)
+    st.session_state.sound_on = st.checkbox("🔊 音ありモード", value=st.session_state.sound_on, key="sound_checkbox")
+
 # 自動更新の実装
 if st.session_state.timer_running:
     auto_refresh()
+
 timer_c, msg_c = st.columns([2, 3])
 with timer_c:
     placeholder = st.empty()
@@ -156,22 +194,32 @@ with timer_c:
             st.session_state.motivation_message = random.choice(MESSAGES)
     else:
         placeholder.metric("残り時間", "--:--")
+
 with msg_c:
     st.markdown("###")
     st.success(st.session_state.motivation_message)
+
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
+
 # メモとログとグラフ
-st.markdown("### 📝 メモ"); st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
+st.markdown("### 📝 メモ")
+st.session_state.memo_text = st.text_area("学習中のメモ:", value=st.session_state.memo_text)
+
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for e in reversed(st.session_state.log):
             st.markdown(f"- {e}")
     else:
         st.write("まだ記録がありません。")
-st.markdown("### 📈 過去の進捗"); df = get_user_stats(st.session_state.username)
+
+st.markdown("### 📈 過去の進捗")
+df = get_user_stats(st.session_state.username)
 if not df.empty:
-    df = df.set_index("date"); st.bar_chart(df)
+    df = df.set_index("date")
+    st.bar_chart(df)
 else:
     st.info("まだ記録がありません。")
-st.markdown("---"); st.caption("© 2025 ポモドーロ勉強サポートアプリ")
+
+st.markdown("---")
+st.caption("© 2025 ポモドーロ勉強サポートアプリ")
