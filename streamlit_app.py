@@ -190,8 +190,7 @@ with left_col:
         seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
-        progress = (dur - rem) / dur
-        st.progress(progress, text=None)  # 青のバー、連続的に伸びる
+
 
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -215,6 +214,9 @@ with left_col:
     else:
         timer_placeholder.metric("残り時間", "--:--")
         st.progress(0)
+
+progress = (dur - rem) / dur
+st.progress(progress, text=None)  # 青のバー、連続的に伸びる
 
 with right_col:
     st.success(st.session_state.motivation_message)
