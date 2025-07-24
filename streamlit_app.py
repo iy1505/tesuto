@@ -1,14 +1,10 @@
-import streamlit as st
+import streamlit as st 
 import sqlite3
 import bcrypt
 import time
 import random
 from datetime import datetime, date
 import pandas as pd
-from streamlit_autorefresh import st_autorefresh  # ← 追加：自動更新
-
-# --- 自動更新（1秒ごと） ---
-st_autorefresh(interval=1000, limit=None, key="auto_refresh")
 
 # --- 応援メッセージ ---
 MESSAGES = [
@@ -16,7 +12,7 @@ MESSAGES = [
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
     "『もう少し』が未来を変える。", "1ページでも進めば、昨日より成長!",
-    "今の努力が未来を創る！", "休むのも戦略、焦らず進もう！"
+    "続けることで道が開ける！", "夢は諦めない人のもの！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -101,7 +97,7 @@ def get_current_duration():
     else:
         return SHORT_BREAK
 
-# --- セッション初期化 ---
+# --- 初期化 ---
 init_db()
 
 for key, default in {
@@ -126,7 +122,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -146,11 +142,11 @@ st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん
 if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.rerun()
+    st.experimental_rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2 = st.columns(2)
+c1, c2 = st.columns([1, 1])
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
@@ -166,18 +162,43 @@ with c2:
         st.session_state.log = []
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.rerun()
+        st.experimental_rerun()
 
-# --- タイマーとメッセージ表示 ---
+# --- タイマーと応援メッセージ ---
 left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
+
     if st.session_state.timer_running and st.session_state.start_time:
         dur = get_current_duration()
         elapsed = int(time.time() - st.session_state.start_time)
         rem = max(dur - elapsed, 0)
-        minutes, seconds = divmod(rem, 60)
+        minutes = rem // 60
+        seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
+
+        # 進捗バー計算
+        progress = min(elapsed / dur, 1.0) * 100
+
+        bar_html = f"""
+        <div style="
+          width: 100%;
+          height: 20px;
+          background-color: #ddd;
+          border-radius: 0;
+          overflow: hidden;
+          margin-top: 5px;
+        ">
+          <div style="
+            width: {progress}%;
+            height: 100%;
+            background-color: #007BFF;
+            transition: width 0.5s ease;
+          ">
+          </div>
+        </div>
+        """
+        st.markdown(bar_html, unsafe_allow_html=True)
 
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -193,10 +214,29 @@ with left_col:
 
             st.session_state.start_time = time.time()
             st.session_state.motivation_message = random.choice(MESSAGES)
-            st.session_state.timer_running = False  # 自動停止
-            st.rerun()
+            st.session_state.timer_running = False
+            st.experimental_rerun()
     else:
         timer_placeholder.metric("残り時間", "--:--")
+        # 空バー表示
+        bar_html = f"""
+        <div style="
+          width: 100%;
+          height: 20px;
+          background-color: #ddd;
+          border-radius: 0;
+          overflow: hidden;
+          margin-top: 5px;
+        ">
+          <div style="
+            width: 0%;
+            height: 100%;
+            background-color: #007BFF;
+          ">
+          </div>
+        </div>
+        """
+        st.markdown(bar_html, unsafe_allow_html=True)
 
 with right_col:
     st.success(st.session_state.motivation_message)
@@ -217,7 +257,7 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 過去の進捗グラフ ---
+# --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
 if not df.empty:
