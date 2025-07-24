@@ -5,6 +5,8 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
+from streamlit_autorefresh import st_autorefresh
+
 
 # --- 応援メッセージ ---
 MESSAGES = [
@@ -122,7 +124,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -142,7 +144,7 @@ st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん
 if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.experimental_rerun()
+    st.rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
@@ -162,7 +164,7 @@ with c2:
         st.session_state.log = []
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun()
+        st.rerun()
 
 # --- タイマーと応援メッセージ ---
 left_col, right_col = st.columns([2, 3])
@@ -215,7 +217,7 @@ with left_col:
             st.session_state.start_time = time.time()
             st.session_state.motivation_message = random.choice(MESSAGES)
             st.session_state.timer_running = False
-            st.experimental_rerun()
+            st.rerun()
     else:
         timer_placeholder.metric("残り時間", "--:--")
         # 空バー表示
