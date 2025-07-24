@@ -10,8 +10,8 @@ import pandas as pd
 MESSAGES = [
     "今日も一歩前進！", "集中して、未来の自分を助けよう！",
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
-    "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！"
-]
+    "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
+    "『もう少し』が未来を変える。","「1ページでも進めば、昨日より成長!"]
 
 # --- タイマー設定（秒） ---
 WORK_DURATION = 25 * 60
@@ -142,9 +142,8 @@ if st.button("ログアウト", key="logout_btn"):
     st.session_state.logged_in = False
     st.rerun()
 
-# --- スタートボタンとリセットボタンをタイマーの上に表示 ---
+# --- タイマー操作 ---
 st.markdown("### タイマー操作")
-
 c1, c2 = st.columns([1, 1])
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
@@ -163,17 +162,18 @@ with c2:
         st.session_state.motivation_message = random.choice(MESSAGES)
         st.rerun()
 
-# タイマーと応援メッセージを横並びに表示
+# --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
-
-# タイマー表示
 with left_col:
     timer_placeholder = st.empty()
+
     if st.session_state.timer_running and st.session_state.start_time:
         dur = get_current_duration()
         elapsed = int(time.time() - st.session_state.start_time)
         rem = max(dur - elapsed, 0)
-        timer_placeholder.metric("残り時間", f"{rem // 60:02}:{rem % 60:02}")
+        minutes = rem // 60
+        seconds = rem % 60
+        timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -189,24 +189,23 @@ with left_col:
 
             st.session_state.start_time = time.time()
             st.session_state.motivation_message = random.choice(MESSAGES)
-            st.rerun()
-
+            st.session_state.timer_running = False  # タイマー自動停止
+            st.experimental_rerun()
     else:
         timer_placeholder.metric("残り時間", "--:--")
 
-# 応援メッセージ表示
 with right_col:
     st.success(st.session_state.motivation_message)
 
-# モード・ポモドーロ数表示
+# --- ステータス表示 ---
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
-# メモ入力欄（ここを修正）
+# --- メモ入力欄 ---
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
-# セッションログ
+# --- セッションログ ---
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for e in reversed(st.session_state.log):
@@ -214,7 +213,7 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# 過去の進捗グラフ
+# --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
 if not df.empty:
