@@ -5,13 +5,18 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
+from streamlit_autorefresh import st_autorefresh  # ← 追加：自動更新
+
+# --- 自動更新（1秒ごと） ---
+st_autorefresh(interval=1000, limit=None, key="auto_refresh")
 
 # --- 応援メッセージ ---
 MESSAGES = [
     "今日も一歩前進！", "集中して、未来の自分を助けよう！",
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
-    "『もう少し』が未来を変える。", "1ページでも進めば、昨日より成長!"
+    "『もう少し』が未来を変える。", "1ページでも進めば、昨日より成長!",
+    "今の努力が未来を創る！", "休むのも戦略、焦らず進もう！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -96,7 +101,7 @@ def get_current_duration():
     else:
         return SHORT_BREAK
 
-# --- 初期化 ---
+# --- セッション初期化 ---
 init_db()
 
 for key, default in {
@@ -145,7 +150,7 @@ if st.button("ログアウト", key="logout_btn"):
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2 = st.columns([1, 1])
+c1, c2 = st.columns(2)
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
@@ -163,17 +168,15 @@ with c2:
         st.session_state.motivation_message = random.choice(MESSAGES)
         st.rerun()
 
-# --- タイマーとメッセージ ---
+# --- タイマーとメッセージ表示 ---
 left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
-
     if st.session_state.timer_running and st.session_state.start_time:
         dur = get_current_duration()
         elapsed = int(time.time() - st.session_state.start_time)
         rem = max(dur - elapsed, 0)
-        minutes = rem // 60
-        seconds = rem % 60
+        minutes, seconds = divmod(rem, 60)
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
         if rem == 0:
@@ -190,8 +193,8 @@ with left_col:
 
             st.session_state.start_time = time.time()
             st.session_state.motivation_message = random.choice(MESSAGES)
-            st.session_state.timer_running = False  # タイマー自動停止
-            st.experimental_rerun()
+            st.session_state.timer_running = False  # 自動停止
+            st.rerun()
     else:
         timer_placeholder.metric("残り時間", "--:--")
 
@@ -214,7 +217,7 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 進捗グラフ ---
+# --- 過去の進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
 if not df.empty:
