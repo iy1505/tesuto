@@ -13,7 +13,7 @@ MESSAGES = [
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
     "『もう少し』が未来を変える。","1ページでも進めば、昨日より成長!",
-    "最後まであきらめないで！","今日は絶好調！"
+    "最後まであきらめない！","確かに成長中！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -186,7 +186,7 @@ with c2:
         st.experimental_rerun()
 
 with c3:
-    st.checkbox("🔊 通知音オン", value=st.session_state.sound_on, key="sound_on")
+    st.checkbox("通知音オン", value=st.session_state.sound_on, key="sound_on")
 
 # --- タイマー表示と応援メッセージ ---
 left_col, right_col = st.columns([2, 3])
