@@ -16,12 +16,10 @@ MESSAGES = [
     "最後まであきらめないで！","今日は絶好調！"
 ]
 
-# --- タイマー設定（秒） ---
 WORK_DURATION = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 20 * 60
 
-# --- DB 初期化 ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -100,7 +98,6 @@ def get_current_duration(mode):
 # --- 初期化 ---
 init_db()
 
-# セッションステート初期化
 for key, default in {
     "logged_in": False,
     "username": "",
@@ -116,7 +113,6 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
-# --- 自動更新設定（1秒ごと） ---
 st_autorefresh(interval=1000, key="refresh_timer")
 
 # --- ログイン画面 ---
@@ -132,7 +128,6 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.experimental_rerun = lambda: None
                 st.experimental_rerun()
             else:
                 st.error("認証失敗")
@@ -153,17 +148,17 @@ st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん
 if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.experimental_rerun = lambda: None
     st.experimental_rerun()
 
-# --- タイマー操作 ---
 st.markdown("### タイマー操作")
 c1, c2 = st.columns([1, 1])
+
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
         st.session_state.motivation_message = random.choice(MESSAGES)
+
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
         # タイマー状態のみリセット（学習ログ・メモ・ポモドーロ数は保持）
@@ -171,20 +166,15 @@ with c2:
         st.session_state.start_time = None
         st.session_state.mode = "作業"
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun = lambda: None
         st.experimental_rerun()
 
-
-
-
-
-# --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
+    progress_placeholder = st.empty()
 
     dur = get_current_duration(st.session_state.mode)
-    rem = dur  # 初期状態
+    rem = dur
 
     if st.session_state.timer_running and st.session_state.start_time is not None:
         elapsed = int(time.time() - st.session_state.start_time)
@@ -196,39 +186,31 @@ with left_col:
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
-
             if st.session_state.mode == "作業":
                 st.session_state.pomodoro_count += 1
                 st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
             else:
                 st.session_state.mode = "作業"
-
             st.session_state.timer_running = False
             st.session_state.start_time = None
             st.session_state.motivation_message = random.choice(MESSAGES)
     else:
         timer_placeholder.metric("残り時間", "--:--")
-        st.progress(0)
 
-    # プログレスバー（常に描画）
-    progress = (dur - rem) / dur if dur > 0 else 0
-    st.progress(progress)
+    progress_ratio = (dur - rem) / dur if dur > 0 else 0
+    progress_placeholder.progress(progress_ratio)
 
 with right_col:
     st.success(st.session_state.motivation_message)
 
-# --- ステータス表示 ---
 st.header(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
-# --- メモ入力欄 ---
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
-# --- セッションログ ---
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for e in reversed(st.session_state.log):
@@ -236,7 +218,6 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
 if not df.empty:
