@@ -133,8 +133,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.experimental_rerun = lambda: None  # 回避用（無効化）
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("認証失敗")
     else:
@@ -154,8 +153,7 @@ st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん
 if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.experimental_rerun = lambda: None
-    st.experimental_rerun()
+    st.rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
@@ -175,8 +173,7 @@ with c2:
         st.session_state.log = []
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun = lambda: None
-        st.experimental_rerun()
+        st.rerun()
 
 # --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
@@ -190,6 +187,10 @@ with left_col:
         minutes = rem // 60
         seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
+
+        # プログレスバーの計算と表示
+        progress = (dur - rem) / dur if dur > 0 else 0
+        st.progress(progress, text=None)
 
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -212,9 +213,6 @@ with left_col:
     else:
         timer_placeholder.metric("残り時間", "--:--")
         st.progress(0)
-
-progress = (dur - rem) / dur
-st.progress(progress, text=None)  # 青のバー、連続的に伸びる
 
 with right_col:
     st.success(st.session_state.motivation_message)
