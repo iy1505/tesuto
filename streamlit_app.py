@@ -3,7 +3,7 @@ import sqlite3
 import bcrypt
 import time
 import random
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
@@ -13,7 +13,7 @@ MESSAGES = [
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
     "『もう少し』が未来を変える。","1ページでも進めば、昨日より成長!",
-    "最後まであきらめない！","確かに成長中!"
+    "最後まであきらめないで！","今日は絶好調！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -108,6 +108,7 @@ for key, default in {
     "start_time": None,
     "mode": "作業",
     "pomodoro_count": 0,
+    "saved_pomodoros": 0,  # ← 保存済みのカウントを追加
     "log": [],
     "memo_text": "",
     "motivation_message": random.choice(MESSAGES),
@@ -150,14 +151,17 @@ if not st.session_state.logged_in:
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
 if st.button("ログアウト", key="logout_btn"):
-    record_session(st.session_state.username, st.session_state.pomodoro_count)
+    unsaved = st.session_state.pomodoro_count - st.session_state.saved_pomodoros
+    if unsaved > 0:
+        record_session(st.session_state.username, unsaved)
+        st.session_state.saved_pomodoros += unsaved
+
     st.session_state.logged_in = False
     st.experimental_rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2, c3 = st.columns([1, 1, 1])
-
+c1, c2, c3 = st.columns([1, 1, 2])
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
@@ -165,20 +169,26 @@ with c1:
         st.session_state.motivation_message = random.choice(MESSAGES)
 
 with c2:
-    sound_on = st.checkbox("通知音オン", value=st.session_state.sound_on)
-    st.session_state.sound_on = sound_on
-
-with c3:
     if st.button("🔁 リセット", key="reset_btn"):
-        record_session(st.session_state.username, st.session_state.pomodoro_count)
+        unsaved = st.session_state.pomodoro_count - st.session_state.saved_pomodoros
+        if unsaved > 0:
+            record_session(st.session_state.username, unsaved)
+            st.session_state.saved_pomodoros += unsaved
+
         st.session_state.timer_running = False
         st.session_state.start_time = None
         st.session_state.mode = "作業"
-        # ポモドーロ数・メモ・ログはリセットしない
+        st.session_state.pomodoro_count = 0
+        st.session_state.saved_pomodoros = 0
+        st.session_state.log = []
+        st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
         st.experimental_rerun()
 
-# --- タイマーとメッセージ ---
+with c3:
+    st.checkbox("🔊 通知音オン", value=st.session_state.sound_on, key="sound_on")
+
+# --- タイマー表示と応援メッセージ ---
 left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
@@ -200,6 +210,9 @@ with left_col:
 
             if st.session_state.mode == "作業":
                 st.session_state.pomodoro_count += 1
+                record_session(st.session_state.username, 1)
+                st.session_state.saved_pomodoros += 1
+
                 if st.session_state.pomodoro_count % 4 == 0:
                     st.session_state.mode = "長休憩"
                 else:
@@ -236,44 +249,25 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 過去の進捗グラフ ---
+# --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
-
 df = get_user_stats(st.session_state.username)
-
-# 期間選択
-period = st.selectbox("表示期間を選択してください", ["全期間", "過去１週間", "過去１ヶ月", "過去３ヶ月"])
-
 if not df.empty:
-    df["date"] = pd.to_datetime(df["date"])
-    today = pd.Timestamp(date.today())
+    df['date'] = pd.to_datetime(df['date'])
+    df = df.set_index("date")
 
-    if period == "過去１週間":
-        start_date = today - pd.Timedelta(days=7)
-        df = df[df["date"] >= start_date]
-        df["week"] = df["date"].dt.to_period("W").apply(lambda r: r.start_time.date())
-        grouped = df.groupby("week").sum()
-        grouped.index = grouped.index.astype(str)
-        st.bar_chart(grouped["completed_pomodoros"], use_container_width=True)
+    filter_range = st.radio("表示期間を選択", ["すべて", "過去1週間", "過去1ヶ月"])
+    today = pd.to_datetime(date.today())
 
-    elif period == "過去１ヶ月":
-        start_date = today - pd.Timedelta(days=30)
-        df = df[df["date"] >= start_date]
-        df_grouped = df.groupby("date").sum()
-        df_grouped.index = df_grouped.index.astype(str)
-        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
+    if filter_range == "過去1週間":
+        df = df[df.index >= today - pd.Timedelta(days=7)]
+    elif filter_range == "過去1ヶ月":
+        df = df[df.index >= today - pd.Timedelta(days=30)]
 
-    elif period == "過去３ヶ月":
-        start_date = today - pd.Timedelta(days=90)
-        df = df[df["date"] >= start_date]
-        df_grouped = df.groupby("date").sum()
-        df_grouped.index = df_grouped.index.astype(str)
-        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
-
+    if not df.empty:
+        st.bar_chart(df["completed_pomodoros"])
     else:
-        df_grouped = df.groupby("date").sum()
-        df_grouped.index = df_grouped.index.astype(str)
-        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
+        st.info("この期間の記録はありません。")
 else:
     st.info("まだ記録がありません。")
 
