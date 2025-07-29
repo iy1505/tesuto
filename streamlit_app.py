@@ -166,16 +166,14 @@ with c1:
         st.session_state.motivation_message = random.choice(MESSAGES)
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
-        record_session(st.session_state.username, st.session_state.pomodoro_count)
-        st.session_state.timer_running = False
-        st.session_state.start_time = None
-        st.session_state.mode = "作業"
-        st.session_state.pomodoro_count = 0
-        st.session_state.log = []
-        st.session_state.memo_text = ""
-        st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun = lambda: None
-        st.experimental_rerun()
+    # タイマー状態のみリセット
+    st.session_state.timer_running = False
+    st.session_state.start_time = None
+    st.session_state.mode = "作業"
+    st.session_state.motivation_message = random.choice(MESSAGES)
+    st.experimental_rerun = lambda: None
+    st.experimental_rerun()
+
 
 # --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
