@@ -3,7 +3,7 @@ import sqlite3
 import bcrypt
 import time
 import random
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
@@ -87,8 +87,6 @@ def get_user_stats(username):
         params=(username,)
     )
     conn.close()
-    if not df.empty:
-        df['date'] = pd.to_datetime(df['date'])
     return df
 
 def get_current_duration(mode):
@@ -167,6 +165,10 @@ with c1:
         st.session_state.motivation_message = random.choice(MESSAGES)
 
 with c2:
+    sound_on = st.checkbox("通知音オン", value=st.session_state.sound_on)
+    st.session_state.sound_on = sound_on
+
+with c3:
     if st.button("🔁 リセット", key="reset_btn"):
         record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.timer_running = False
@@ -175,10 +177,6 @@ with c2:
         # ポモドーロ数・メモ・ログはリセットしない
         st.session_state.motivation_message = random.choice(MESSAGES)
         st.experimental_rerun()
-
-with c3:
-    sound_on = st.checkbox("通知音オン", value=st.session_state.sound_on)
-    st.session_state.sound_on = sound_on
 
 # --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
@@ -193,13 +191,10 @@ with left_col:
         seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
-        progress = (dur - rem) / dur
-        st.progress(progress, text=None)
-
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-            # 音声再生
+
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
@@ -215,6 +210,9 @@ with left_col:
             st.session_state.timer_running = False
             st.session_state.start_time = None
             st.session_state.motivation_message = random.choice(MESSAGES)
+
+        progress = (dur - rem) / dur
+        st.progress(progress)
     else:
         timer_placeholder.metric("残り時間", "--:--")
         st.progress(0)
@@ -238,38 +236,44 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 進捗グラフ（期間選択付き） ---
+# --- 過去の進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 
 df = get_user_stats(st.session_state.username)
+
+# 期間選択
+period = st.selectbox("表示期間を選択してください", ["全期間", "過去１週間", "過去１ヶ月", "過去３ヶ月"])
+
 if not df.empty:
-    period = st.selectbox("表示期間を選択してください", ["全期間", "過去1週間", "過去1ヶ月", "過去3ヶ月"], index=0)
+    df["date"] = pd.to_datetime(df["date"])
+    today = pd.Timestamp(date.today())
 
-    today = pd.Timestamp.today().normalize()
+    if period == "過去１週間":
+        start_date = today - pd.Timedelta(days=7)
+        df = df[df["date"] >= start_date]
+        df["week"] = df["date"].dt.to_period("W").apply(lambda r: r.start_time.date())
+        grouped = df.groupby("week").sum()
+        grouped.index = grouped.index.astype(str)
+        st.bar_chart(grouped["completed_pomodoros"], use_container_width=True)
 
-    if period == "過去1週間":
-        start_date = today - pd.DateOffset(weeks=1)
-    elif period == "過去1ヶ月":
-        start_date = today - pd.DateOffset(months=1)
-    elif period == "過去3ヶ月":
-        start_date = today - pd.DateOffset(months=3)
+    elif period == "過去１ヶ月":
+        start_date = today - pd.Timedelta(days=30)
+        df = df[df["date"] >= start_date]
+        df_grouped = df.groupby("date").sum()
+        df_grouped.index = df_grouped.index.astype(str)
+        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
+
+    elif period == "過去３ヶ月":
+        start_date = today - pd.Timedelta(days=90)
+        df = df[df["date"] >= start_date]
+        df_grouped = df.groupby("date").sum()
+        df_grouped.index = df_grouped.index.astype(str)
+        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
+
     else:
-        start_date = df['date'].min()
-
-    df_filtered = df[df['date'] >= start_date]
-
-    if df_filtered.empty:
-        st.info("この期間には記録がありません。")
-    else:
-        weekly = (df_filtered
-                  .groupby(pd.Grouper(key='date', freq='W-MON', label='left'))
-                  ['completed_pomodoros']
-                  .sum()
-                  .reset_index()
-                  .sort_values('date'))
-        weekly = weekly.set_index('date')
-        weekly.index = weekly.index.to_series().dt.strftime('%Y-%m-%d')
-        st.bar_chart(weekly)
+        df_grouped = df.groupby("date").sum()
+        df_grouped.index = df_grouped.index.astype(str)
+        st.bar_chart(df_grouped["completed_pomodoros"], use_container_width=True)
 else:
     st.info("まだ記録がありません。")
 
