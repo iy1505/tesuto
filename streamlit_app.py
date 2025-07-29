@@ -87,6 +87,8 @@ def get_user_stats(username):
         params=(username,)
     )
     conn.close()
+    if not df.empty:
+        df['date'] = pd.to_datetime(df['date'])
     return df
 
 def get_current_duration(mode):
@@ -132,7 +134,6 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.experimental_rerun = lambda: None
                 st.experimental_rerun()
             else:
                 st.error("認証失敗")
@@ -150,34 +151,34 @@ if not st.session_state.logged_in:
 # --- メイン画面 ---
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
-# 通知音オンオフ設定（サイドバーに表示）
-st.sidebar.markdown("## 設定")
-st.session_state.sound_on = st.sidebar.checkbox("🔔 通知音をオンにする", value=st.session_state.sound_on)
-
 if st.button("ログアウト", key="logout_btn"):
     record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
-    st.experimental_rerun = lambda: None
     st.experimental_rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2 = st.columns([1, 1])
+c1, c2, c3 = st.columns([1, 1, 1])
+
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
         st.session_state.motivation_message = random.choice(MESSAGES)
+
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
         record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.timer_running = False
         st.session_state.start_time = None
         st.session_state.mode = "作業"
-        # ポモドーロ数・メモ・ログはリセットしない（ご要望通り）
+        # ポモドーロ数・メモ・ログはリセットしない
         st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun = lambda: None
         st.experimental_rerun()
+
+with c3:
+    sound_on = st.checkbox("通知音オン", value=st.session_state.sound_on)
+    st.session_state.sound_on = sound_on
 
 # --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
@@ -192,12 +193,13 @@ with left_col:
         seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
-        progress = (dur - rem) / dur if dur else 0
-        st.progress(progress)
+        progress = (dur - rem) / dur
+        st.progress(progress, text=None)
 
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
+            # 音声再生
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
@@ -236,15 +238,14 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-# --- 進捗グラフ（週別＋期間選択） ---
-st.markdown("### 📈 週間別ポモドーロ数")
+# --- 進捗グラフ（期間選択付き） ---
+st.markdown("### 📈 過去の進捗")
+
 df = get_user_stats(st.session_state.username)
-
 if not df.empty:
-    df['date'] = pd.to_datetime(df['date'])
+    period = st.selectbox("表示期間を選択してください", ["全期間", "過去1週間", "過去1ヶ月", "過去3ヶ月"], index=0)
 
-    period = st.selectbox("表示期間を選択：", ("過去1週間", "過去1ヶ月", "過去3ヶ月", "すべて"), index=0)
-    today = pd.to_datetime(date.today())
+    today = pd.Timestamp.today().normalize()
 
     if period == "過去1週間":
         start_date = today - pd.DateOffset(weeks=1)
