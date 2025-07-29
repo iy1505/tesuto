@@ -256,7 +256,8 @@ if not df.empty:
     df['date'] = pd.to_datetime(df['date'])
     df = df.set_index("date")
 
-    filter_range = st.radio("表示期間を選択", ["すべて", "過去1週間", "過去1ヶ月"])
+    # ✅ 表示期間を選択（セレクトボックス方式）
+    filter_range = st.selectbox("表示期間を選択", ["すべて", "過去1週間", "過去1ヶ月"])
     today = pd.to_datetime(date.today())
 
     if filter_range == "過去1週間":
@@ -270,6 +271,7 @@ if not df.empty:
         st.info("この期間の記録はありません。")
 else:
     st.info("まだ記録がありません。")
+
 
 st.markdown("---")
 st.caption("© 2025 ポモドーロ勉強サポートアプリ")
