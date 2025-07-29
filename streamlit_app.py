@@ -132,7 +132,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
-                st.experimental_rerun = lambda: None  # 回避用（無効化）
+                st.experimental_rerun = lambda: None
                 st.experimental_rerun()
             else:
                 st.error("認証失敗")
@@ -182,29 +182,26 @@ left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
 
+    dur = get_current_duration(st.session_state.mode)
+    rem = dur  # 初期状態
+
     if st.session_state.timer_running and st.session_state.start_time is not None:
-        dur = get_current_duration(st.session_state.mode)
         elapsed = int(time.time() - st.session_state.start_time)
         rem = max(dur - elapsed, 0)
         minutes = rem // 60
         seconds = rem % 60
         timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
 
-
-
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-            # 音声再生（URLは自由に変更可）
+
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
             if st.session_state.mode == "作業":
                 st.session_state.pomodoro_count += 1
-                if st.session_state.pomodoro_count % 4 == 0:
-                    st.session_state.mode = "長休憩"
-                else:
-                    st.session_state.mode = "休憩"
+                st.session_state.mode = "長休憩" if st.session_state.pomodoro_count % 4 == 0 else "休憩"
             else:
                 st.session_state.mode = "作業"
 
@@ -215,8 +212,9 @@ with left_col:
         timer_placeholder.metric("残り時間", "--:--")
         st.progress(0)
 
-progress = (dur - rem) / dur
-st.progress(progress, text=None)  # 青のバー、連続的に伸びる
+    # プログレスバー（常に描画）
+    progress = (dur - rem) / dur if dur > 0 else 0
+    st.progress(progress)
 
 with right_col:
     st.success(st.session_state.motivation_message)
