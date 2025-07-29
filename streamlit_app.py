@@ -166,13 +166,14 @@ with c1:
         st.session_state.motivation_message = random.choice(MESSAGES)
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
-    # タイマー状態のみリセット
+    # タイマー状態のみリセット（インデントを追加）
     st.session_state.timer_running = False
     st.session_state.start_time = None
     st.session_state.mode = "作業"
     st.session_state.motivation_message = random.choice(MESSAGES)
     st.experimental_rerun = lambda: None
     st.experimental_rerun()
+
 
 
 # --- タイマーとメッセージ ---
