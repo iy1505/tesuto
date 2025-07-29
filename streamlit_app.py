@@ -5,6 +5,7 @@ import time
 import random
 from datetime import datetime, date
 import pandas as pd
+import matplotlib.pyplot as plt
 from streamlit_autorefresh import st_autorefresh
 
 # --- 応援メッセージ ---
@@ -13,7 +14,7 @@ MESSAGES = [
     "小さな積み重ねが大きな成果に！", "やればできる、今がその時！",
     "知識は力。コツコツ続けよう！", "一歩ずつ、でも確実に前進中！",
     "『もう少し』が未来を変える。","1ページでも進めば、昨日より成長!",
-    "最後まであきらめない！","確かに成長中！"
+    "最後まであきらめないで！","今日は絶好調！"
 ]
 
 # --- タイマー設定（秒） ---
@@ -108,7 +109,6 @@ for key, default in {
     "start_time": None,
     "mode": "作業",
     "pomodoro_count": 0,
-    "saved_pomodoros": 0,  # ← 保存済みのカウントを追加
     "log": [],
     "memo_text": "",
     "motivation_message": random.choice(MESSAGES),
@@ -133,6 +133,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = u
                 st.success("ログインしました")
+                st.experimental_rerun = lambda: None  # 回避用（無効化）
                 st.experimental_rerun()
             else:
                 st.error("認証失敗")
@@ -151,44 +152,33 @@ if not st.session_state.logged_in:
 st.title(f"📚 ポモドーロタイマー - {st.session_state.username} さん")
 
 if st.button("ログアウト", key="logout_btn"):
-    unsaved = st.session_state.pomodoro_count - st.session_state.saved_pomodoros
-    if unsaved > 0:
-        record_session(st.session_state.username, unsaved)
-        st.session_state.saved_pomodoros += unsaved
-
+    record_session(st.session_state.username, st.session_state.pomodoro_count)
     st.session_state.logged_in = False
+    st.experimental_rerun = lambda: None
     st.experimental_rerun()
 
 # --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2, c3 = st.columns([1, 1, 2])
+c1, c2 = st.columns([1, 1])
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
         st.session_state.motivation_message = random.choice(MESSAGES)
-
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
-        unsaved = st.session_state.pomodoro_count - st.session_state.saved_pomodoros
-        if unsaved > 0:
-            record_session(st.session_state.username, unsaved)
-            st.session_state.saved_pomodoros += unsaved
-
+        record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.timer_running = False
         st.session_state.start_time = None
         st.session_state.mode = "作業"
         st.session_state.pomodoro_count = 0
-        st.session_state.saved_pomodoros = 0
         st.session_state.log = []
         st.session_state.memo_text = ""
         st.session_state.motivation_message = random.choice(MESSAGES)
+        st.experimental_rerun = lambda: None
         st.experimental_rerun()
 
-with c3:
-    st.checkbox("通知音オン", value=st.session_state.sound_on, key="sound_on")
-
-# --- タイマー表示と応援メッセージ ---
+# --- タイマーとメッセージ ---
 left_col, right_col = st.columns([2, 3])
 with left_col:
     timer_placeholder = st.empty()
@@ -204,15 +194,11 @@ with left_col:
         if rem == 0:
             ts = datetime.now().strftime("%H:%M:%S")
             st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
-
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
 
             if st.session_state.mode == "作業":
                 st.session_state.pomodoro_count += 1
-                record_session(st.session_state.username, 1)
-                st.session_state.saved_pomodoros += 1
-
                 if st.session_state.pomodoro_count % 4 == 0:
                     st.session_state.mode = "長休憩"
                 else:
@@ -223,12 +209,12 @@ with left_col:
             st.session_state.timer_running = False
             st.session_state.start_time = None
             st.session_state.motivation_message = random.choice(MESSAGES)
-
-        progress = (dur - rem) / dur
-        st.progress(progress)
     else:
         timer_placeholder.metric("残り時間", "--:--")
         st.progress(0)
+
+progress = (dur - rem) / dur
+st.progress(progress, text=None)  # 青のバー、連続的に伸びる
 
 with right_col:
     st.success(st.session_state.motivation_message)
@@ -241,22 +227,15 @@ st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
-# --- セッションログ ---
-with st.expander("📚 セッションログ"):
-    if st.session_state.log:
-        for e in reversed(st.session_state.log):
-            st.markdown(f"- {e}")
-    else:
-        st.write("まだ記録がありません。")
-
 # --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
+
 if not df.empty:
     df['date'] = pd.to_datetime(df['date'])
     df = df.set_index("date")
 
-    # ✅ 表示期間を選択（セレクトボックス方式）
+    # 表示期間選択（セレクトボックス）
     filter_range = st.selectbox("表示期間を選択", ["すべて", "過去1週間", "過去1ヶ月"])
     today = pd.to_datetime(date.today())
 
@@ -266,12 +245,25 @@ if not df.empty:
         df = df[df.index >= today - pd.Timedelta(days=30)]
 
     if not df.empty:
-        st.bar_chart(df["completed_pomodoros"])
+        # グラフの準備
+        fig, ax = plt.subplots(figsize=(8, 4))
+        x_labels = [d.strftime("%-m/%-d") for d in df.index]  # 月/日表示
+        y_values = df["completed_pomodoros"].values
+
+        bars = ax.bar(x_labels, y_values, color="#1f77b4")
+
+        # Y軸の数値を棒の上ではなく横（棒の左）に表示
+        for i, v in enumerate(y_values):
+            ax.text(i, v + 0.1, str(v), ha='center', va='bottom', fontsize=9)
+
+        ax.set_xlabel("日付")
+        ax.set_ylabel("ポモドーロ数")
+        ax.set_title("日別ポモドーロ数")
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        st.pyplot(fig)
     else:
         st.info("この期間の記録はありません。")
 else:
     st.info("まだ記録がありません。")
-
-
-st.markdown("---")
-st.caption("© 2025 ポモドーロ勉強サポートアプリ")
