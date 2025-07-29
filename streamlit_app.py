@@ -16,10 +16,12 @@ MESSAGES = [
     "最後まであきらめないで！","今日は絶好調！"
 ]
 
+# --- タイマー時間設定（秒） ---
 WORK_DURATION = 25 * 60
 SHORT_BREAK = 5 * 60
 LONG_BREAK = 20 * 60
 
+# --- DB 初期化 ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -98,6 +100,7 @@ def get_current_duration(mode):
 # --- 初期化 ---
 init_db()
 
+# セッションステート初期化
 for key, default in {
     "logged_in": False,
     "username": "",
@@ -113,6 +116,7 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
+# 自動更新（1秒ごと）
 st_autorefresh(interval=1000, key="refresh_timer")
 
 # --- ログイン画面 ---
@@ -127,7 +131,6 @@ if not st.session_state.logged_in:
             if verify_user(u, p):
                 st.session_state.logged_in = True
                 st.session_state.username = u
-                st.success("ログインしました")
                 st.experimental_rerun()
             else:
                 st.error("認証失敗")
@@ -150,42 +153,36 @@ if st.button("ログアウト", key="logout_btn"):
     st.session_state.logged_in = False
     st.experimental_rerun()
 
+# --- タイマー操作 ---
 st.markdown("### タイマー操作")
-c1, c2 = st.columns([1, 1])
-
+c1, c2 = st.columns(2)
 with c1:
     if st.button("▶️ 開始", disabled=st.session_state.timer_running, key="start_btn"):
         st.session_state.timer_running = True
         st.session_state.start_time = time.time()
         st.session_state.motivation_message = random.choice(MESSAGES)
-
 with c2:
     if st.button("🔁 リセット", key="reset_btn"):
-        # タイマー状態のみリセット（学習ログ・メモ・ポモドーロ数は保持）
+        record_session(st.session_state.username, st.session_state.pomodoro_count)
         st.session_state.timer_running = False
         st.session_state.start_time = None
         st.session_state.mode = "作業"
-        st.session_state.motivation_message = random.choice(MESSAGES)
-        st.experimental_rerun()
 
-left_col, right_col = st.columns([2, 3])
-with left_col:
+# --- タイマー表示とメッセージ ---
+left, right = st.columns([2, 3])
+with left:
     timer_placeholder = st.empty()
-    progress_placeholder = st.empty()
-
     dur = get_current_duration(st.session_state.mode)
     rem = dur
 
     if st.session_state.timer_running and st.session_state.start_time is not None:
         elapsed = int(time.time() - st.session_state.start_time)
         rem = max(dur - elapsed, 0)
-        minutes = rem // 60
-        seconds = rem % 60
-        timer_placeholder.metric("残り時間", f"{minutes:02}:{seconds:02}")
+        mins, secs = divmod(rem, 60)
+        timer_placeholder.metric("残り時間", f"{mins:02}:{secs:02}")
 
         if rem == 0:
-            ts = datetime.now().strftime("%H:%M:%S")
-            st.session_state.log.append(f"{ts} - {st.session_state.mode} セッション終了 ✅")
+            st.session_state.log.append(f"{datetime.now().strftime('%H:%M:%S')} - {st.session_state.mode} セッション終了 ✅")
             if st.session_state.sound_on:
                 st.audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg", format="audio/ogg")
             if st.session_state.mode == "作業":
@@ -199,18 +196,24 @@ with left_col:
     else:
         timer_placeholder.metric("残り時間", "--:--")
 
-    progress_ratio = (dur - rem) / dur if dur > 0 else 0
-    progress_placeholder.progress(progress_ratio)
+    # プログレスバー（1本に固定）
+    if st.session_state.timer_running and dur:
+        st.progress((dur - rem) / dur)
+    else:
+        st.progress(0)
 
-with right_col:
+with right:
     st.success(st.session_state.motivation_message)
 
-st.header(f"🕒 現在モード：{st.session_state.mode}")
+# --- ステータス ---
+st.subheader(f"🕒 現在モード：{st.session_state.mode}")
 st.subheader(f"🍅 完了ポモドーロ数：{st.session_state.pomodoro_count}")
 
+# --- メモ欄 ---
 st.markdown("### 📝 メモ")
 st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_text")
 
+# --- セッションログ ---
 with st.expander("📚 セッションログ"):
     if st.session_state.log:
         for e in reversed(st.session_state.log):
@@ -218,11 +221,38 @@ with st.expander("📚 セッションログ"):
     else:
         st.write("まだ記録がありません。")
 
-st.markdown("### 📈 過去の進捗")
+# --- 進捗グラフ（週別＋期間選択） ---
+st.markdown("### 📈 週間別ポモドーロ数")
 df = get_user_stats(st.session_state.username)
+
 if not df.empty:
-    df = df.set_index("date")
-    st.bar_chart(df)
+    df['date'] = pd.to_datetime(df['date'])
+
+    period = st.selectbox("表示期間を選択：", ("過去1週間", "過去1ヶ月", "過去3ヶ月", "すべて"), index=0)
+    today = pd.to_datetime(date.today())
+
+    if period == "過去1週間":
+        start_date = today - pd.DateOffset(weeks=1)
+    elif period == "過去1ヶ月":
+        start_date = today - pd.DateOffset(months=1)
+    elif period == "過去3ヶ月":
+        start_date = today - pd.DateOffset(months=3)
+    else:
+        start_date = df['date'].min()
+
+    df_filtered = df[df['date'] >= start_date]
+
+    if df_filtered.empty:
+        st.info("この期間には記録がありません。")
+    else:
+        weekly = (df_filtered
+                  .groupby(pd.Grouper(key='date', freq='W-MON', label='left'))['completed_pomodoros']
+                  .sum()
+                  .reset_index()
+                  .sort_values('date'))
+        weekly = weekly.set_index('date')
+        weekly.index = weekly.index.to_series().dt.strftime('%Y-%m-%d')
+        st.bar_chart(weekly)
 else:
     st.info("まだ記録がありません。")
 
