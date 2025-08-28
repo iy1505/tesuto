@@ -231,15 +231,6 @@ df = get_user_stats(st.session_state.username)
 # ユーザーの記録データ取得
 df = get_user_stats(st.session_state.username)
 
-# デバッグ：中身を確認
-st.write("📊 デバッグ：取得したデータ", df)
-
-# データが空かどうか判定
-if df.empty:
-    st.warning("⚠️ データが空です。まだ学習記録が保存されていない可能性があります。")
-else:
-    st.success("✅ データが存在しています！グラフが描画できるはずです。")
-
 if not df.empty:
     df['date'] = pd.to_datetime(df['date'])
     df = df.set_index("date")
