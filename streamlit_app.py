@@ -228,6 +228,17 @@ st.text_area("学習中のメモ:", value=st.session_state.memo_text, key="memo_
 # --- 進捗グラフ ---
 st.markdown("### 📈 過去の進捗")
 df = get_user_stats(st.session_state.username)
+# ユーザーの記録データ取得
+df = get_user_stats(st.session_state.username)
+
+# デバッグ：中身を確認
+st.write("📊 デバッグ：取得したデータ", df)
+
+# データが空かどうか判定
+if df.empty:
+    st.warning("⚠️ データが空です。まだ学習記録が保存されていない可能性があります。")
+else:
+    st.success("✅ データが存在しています！グラフが描画できるはずです。")
 
 if not df.empty:
     df['date'] = pd.to_datetime(df['date'])
